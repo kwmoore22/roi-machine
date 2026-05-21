@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ROI Machine — NP Digital</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0f1117;color:#e2e8f0;font-family:'DM Sans',system-ui,sans-serif;font-size:14px;line-height:1.5}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:#161b26}
+::-webkit-scrollbar-thumb{background:#252d40;border-radius:3px}
+/* layout */
+.app-header{background:#0f1117;border-bottom:1px solid #1e2535;padding:12px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+.app-nav{background:#0f1117;border-bottom:1px solid #1e2535;padding:0 24px;display:flex}
+.app-main{padding:20px 24px 48px;max-width:1280px;margin:0 auto}
+/* nav */
+.nav-tab{padding:12px 16px;font-size:13px;font-weight:500;cursor:pointer;border:none;background:none;color:#64748b;border-bottom:2px solid transparent;transition:all 0.15s;font-family:inherit}
+.nav-tab:hover{color:#94a3b8}
+.nav-tab.active{background:#1e2535;color:#e2e8f0;border-bottom-color:#3b82f6}
+/* cards */
+.kpi-card{background:#161b26;border:1px solid #1e2535;border-radius:8px;padding:16px}
+.kpi-card.hl{border-color:rgba(59,130,246,0.4)}
+.kpi-label{font-size:11px;color:#64748b;display:flex;align-items:center;gap:4px;margin-bottom:6px;flex-wrap:wrap}
+.kpi-val{font-size:24px;font-weight:600;font-family:'DM Mono',monospace;color:#f1f5f9}
+.kpi-val.blue{color:#3b82f6}
+.kpi-sub{font-size:11px;color:#64748b;margin-top:4px}
+.kpi-grid5{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+.kpi-grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.section-card{background:#161b26;border:1px solid #1e2535;border-radius:10px;padding:20px}
+.sc-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.sc-title{font-size:14px;font-weight:600;color:#e2e8f0}
+/* grids */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.grid3{display:grid;grid-template-columns:1fr 2fr;gap:20px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+/* badges */
+.badge{font-size:11px;font-weight:500;padding:2px 8px;border-radius:20px;white-space:nowrap;display:inline-block}
+.badge-est{background:rgba(245,158,11,0.15);color:#f59e0b;border:1px solid rgba(245,158,11,0.3)}
+.badge-attr{background:rgba(34,197,94,0.15);color:#22c55e;border:1px solid rgba(34,197,94,0.3)}
+.badge-gap{background:rgba(239,68,68,0.15);color:#ef4444;border:1px solid rgba(239,68,68,0.3)}
+.badge-info{background:rgba(59,130,246,0.15);color:#3b82f6;border:1px solid rgba(59,130,246,0.3)}
+/* tooltip */
+.tip-wrap{position:relative;display:inline-flex;align-items:center}
+.tip-icon{width:14px;height:14px;border-radius:50%;border:1px solid #334155;color:#64748b;font-size:10px;display:inline-flex;align-items:center;justify-content:center;cursor:help;flex-shrink:0;line-height:1}
+.tip-box{position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:#252d40;color:#cbd5e1;font-size:11px;padding:6px 10px;border-radius:5px;width:210px;text-align:center;pointer-events:none;opacity:0;transition:opacity 0.15s;z-index:200;border:1px solid #334155}
+.tip-wrap:hover .tip-box{opacity:1}
+/* buttons */
+.btn{border:none;border-radius:6px;padding:8px 16px;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;transition:all 0.15s}
+.btn-p{background:#3b82f6;color:#fff}.btn-p:hover{background:#2563eb}
+.btn-s{background:#1e2535;color:#94a3b8;border:1px solid #252d40}.btn-s:hover{background:#252d40;color:#e2e8f0}
+.btn-ok{background:rgba(34,197,94,0.15);color:#22c55e;border:1px solid rgba(34,197,94,0.3)}.btn-ok:hover{background:rgba(34,197,94,0.25)}
+.btn-sm{padding:5px 10px;font-size:11px}
+/* inputs */
+input[type=text],input[type=number],select,textarea{background:#161b26;border:1px solid #252d40;color:#e2e8f0;border-radius:6px;padding:8px 12px;font-family:inherit;font-size:13px;outline:none;transition:border-color 0.15s;width:100%}
+input[type=text]:focus,input[type=number]:focus,select:focus,textarea:focus{border-color:#3b82f6}
+select option{background:#161b26}
+input[type=radio],input[type=checkbox]{accent-color:#3b82f6}
+.flabel{font-size:11px;color:#64748b;display:block;margin-bottom:5px}
+/* upload */
+.upload-zone{border:2px dashed #252d40;border-radius:8px;padding:32px;text-align:center;cursor:pointer;transition:all 0.2s}
+.upload-zone:hover,.upload-zone.drag{border-color:#3b82f6;background:rgba(59,130,246,0.05)}
+/* empty */
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px;text-align:center}
+/* tables */
+table{width:100%;border-collapse:collapse}
+th{text-align:left;padding:8px 12px;font-size:11px;color:#64748b;border-bottom:1px solid #1e2535;white-space:nowrap}
+td{padding:6px 12px;border-bottom:1px solid #161b26;font-size:12px}
+tr:hover td{background:#1e2535}
+.th-s{cursor:pointer;user-select:none}.th-s:hover{color:#94a3b8}
+.mn{font-family:'DM Mono',monospace;font-size:12px}
+.muted{color:#64748b}
+.green{color:#22c55e;font-family:'DM Mono',monospace;font-size:12px}
+.trunc{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* alerts */
+.alert{border-radius:8px;padding:16px;display:flex;align-items:flex-start;gap:12px}
+.alert-r{border:1px solid rgba(239,68,68,0.3);background:rgba(239,68,68,0.05)}
+.alert-y{border:1px solid rgba(245,158,11,0.2);background:rgba(245,158,11,0.05)}
+.alert-b{border:1px solid rgba(59,130,246,0.2);background:rgba(59,130,246,0.05)}
+.alert-icon{font-size:20px;flex-shrink:0;line-height:1.4}
+.at-red{font-size:13px;font-weight:600;color:#ef4444;margin-bottom:4px}
+.at-yel{font-size:13px;font-weight:600;color:#f59e0b;margin-bottom:4px}
+.at-blu{font-size:13px;font-weight:600;color:#3b82f6;margin-bottom:4px}
+.alert-body{font-size:12px;color:#94a3b8;line-height:1.5}
+/* retainer bars */
+.rbar-wrap{margin-bottom:14px}
+.rbar-head{display:flex;justify-content:space-between;font-size:11px;margin-bottom:5px;color:#64748b}
+.rbar-track{height:6px;border-radius:3px;background:#1e2535}
+.rbar-fill{height:6px;border-radius:3px;transition:width 0.6s}
+/* big ROI */
+.roi-box{text-align:center;padding:24px 32px;border-left:1px solid #1e2535}
+.roi-lbl{font-size:11px;color:#64748b;margin-bottom:8px}
+.roi-num{font-size:52px;font-weight:700;font-family:'DM Mono',monospace;color:#3b82f6;line-height:1}
+.roi-sub{font-size:11px;color:#64748b;margin-top:6px}
+/* legend */
+.leg{display:flex;gap:16px;font-size:11px;margin-top:8px;flex-wrap:wrap;justify-content:center}
+.leg-item{display:flex;align-items:center;gap:6px;color:#64748b}
+.leg-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+/* logo */
+.logo{font-size:18px;font-weight:700;letter-spacing:-0.5px;color:#fff}
+.logo-a{color:#3b82f6}
+/* spacing helpers */
+.sy4>*+*{margin-top:16px}
+.sy5>*+*{margin-top:20px}
+.mt3{margin-top:12px}
+.mt4{margin-top:16px}
+.mb3{margin-bottom:12px}
+.mb4{margin-bottom:16px}
+.ow{overflow-x:auto}
+@media print{.app-header,.app-nav{display:none}body{background:#fff;color:#000}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
+<script>
+'use strict';
+const {createElement:h,Fragment,useState,useMemo,useRef,useCallback}=React;
+
+// ── Formatters ────────────────────────────────────────────────────────────────
+const fmt$=v=>(v==null||isNaN(v))?'—':'$'+Number(v).toLocaleString('en-US',{maximumFractionDigits:0});
+const fmtN=v=>(v==null||isNaN(v))?'—':Number(v).toLocaleString('en-US');
+const fmtP=(v,d=1)=>(v==null||isNaN(v))?'—':Number(v).toFixed(d)+'%';
+const fmtX=v=>(v==null||isNaN(v))?'—':Number(v).toFixed(2)+'x';
+
+// ── Primitives ────────────────────────────────────────────────────────────────
+function Tip({text}){
+  return h('span',{className:'tip-wrap',style:{marginLeft:4}},
+    h('span',{className:'tip-icon'},'?'),
+    h('span',{className:'tip-box'},text)
+  );
+}
+
+function Badge({type,children}){
+  const cls={est:'badge badge-est',attr:'badge badge-attr',gap:'badge badge-gap',info:'badge badge-info'}[type]||'badge badge-info';
+  return h('span',{className:cls},children);
+}
+
+function KPI({label,value,sub,badge,tip,hl}){
+  return h('div',{className:'kpi-card'+(hl?' hl':'')},
+    h('div',{className:'kpi-label'},label,tip&&h(Tip,{text:tip}),badge&&h('span',{style:{marginLeft:'auto'}},badge)),
+    h('div',{className:'kpi-val'+(hl?' blue':'')},value),
+    sub&&h('div',{className:'kpi-sub'},sub)
+  );
+}
+
+function Card({title,children,action}){
+  return h('div',{className:'section-card'},
+    (title||action)&&h('div',{className:'sc-header'},
+      title&&h('div',{className:'sc-title'},title),
+      action
+    ),
+    children
+  );
+}
+
+function Empty({icon,title,desc}){
+  return h('div',{className:'empty'},
+    h('div',{style:{fontSize:36,marginBottom:12}},icon),
+    h('div',{style:{fontWeight:500,color:'#94a3b8',marginBottom:4}},title),
+    h('div',{style:{fontSize:12,color:'#64748b',maxWidth:260}},desc)
+  );
+}
+
+function Uploader({onParsed,label,hint}){
+  const [drag,setDrag]=useState(false);
+  const [busy,setBusy]=useState(false);
+  const ref=useRef();
+  const parse=f=>{
+    setBusy(true);
+    Papa.parse(f,{header:true,skipEmptyLines:true,
+      complete:r=>{setBusy(false);onParsed(r.data,r.meta.fields||[]);},
+      error:()=>setBusy(false)
+    });
+  };
+  return h('div',{
+    className:'upload-zone'+(drag?' drag':''),
+    onDragOver:ev=>{ev.preventDefault();setDrag(true);},
+    onDragLeave:()=>setDrag(false),
+    onDrop:ev=>{ev.preventDefault();setDrag(false);const f=ev.dataTransfer.files[0];if(f)parse(f);},
+    onClick:()=>ref.current.click()
+  },
+    h('input',{ref,type:'file',accept:'.csv',style:{display:'none'},onChange:ev=>{if(ev.target.files[0])parse(ev.target.files[0]);}}),
+    busy?h('div',{style:{color:'#64748b',fontSize:13}},'Parsing CSV…')
+      :h(Fragment,null,
+        h('div',{style:{fontSize:28,marginBottom:8}},'📂'),
+        h('div',{style:{fontSize:13,fontWeight:500,color:'#94a3b8',marginBottom:4}},label||'Drop CSV here or click to upload'),
+        hint&&h('div',{style:{fontSize:11,color:'#64748b'}},hint)
+      )
+  );
+}
+
+// ── SVG Gauge ─────────────────────────────────────────────────────────────────
+function Gauge({score,size=130}){
+  const r=44,cx=size/2,cy=size/2;
+  const circ=2*Math.PI*r,arc=circ*0.75;
+  const off=arc-(Math.min(100,Math.max(0,score))/100)*arc;
+  const col=score>=70?'#22c55e':score>=40?'#f59e0b':'#ef4444';
+  const lbl=score>=70?'Healthy':score>=40?'Fair':'At Risk';
+  const base={cx,cy,r,fill:'none',strokeWidth:10};
+  return h('div',{style:{display:'flex',flexDirection:'column',alignItems:'center'}},
+    h('svg',{width:size,height:size*0.8,viewBox:`0 0 ${size} ${size}`},
+      h('circle',{...base,stroke:'#1e2535',strokeDasharray:`${arc} ${circ}`,style:{transformOrigin:`${cx}px ${cy}px`,transform:'rotate(135deg)'}}),
+      h('circle',{...base,stroke:col,strokeLinecap:'round',strokeDasharray:`${arc} ${circ}`,strokeDashoffset:off,style:{transformOrigin:`${cx}px ${cy}px`,transform:'rotate(135deg)',transition:'stroke-dashoffset 0.8s ease'}}),
+      h('text',{x:cx,y:cy+6,textAnchor:'middle',fill:'#e2e8f0',fontSize:22,fontWeight:600,fontFamily:'DM Mono,monospace'},score),
+      h('text',{x:cx,y:cy+22,textAnchor:'middle',fill:col,fontSize:11},lbl)
+    ),
+    h('div',{style:{fontSize:11,color:'#64748b',marginTop:4}},'List Health Score')
+  );
+}
+
+// ── SVG Donut ─────────────────────────────────────────────────────────────────
+function Donut({data,colors}){
+  const sz=200,r=72,cx=sz/2,cy=sz/2,circ=2*Math.PI*r;
+  const total=data.reduce((s,d)=>s+d.value,0);
+  if(!total)return null;
+  let cum=0;
+  const segs=data.map((d,i)=>{
+    const len=(d.value/total)*circ;
+    const s={...d,len,off:-cum,col:colors[i%colors.length]};
+    cum+=len;return s;
+  });
+  return h('div',{style:{display:'flex',flexDirection:'column',alignItems:'center'}},
+    h('svg',{width:sz,height:sz,viewBox:`0 0 ${sz} ${sz}`},
+      h('circle',{cx,cy,r,fill:'none',stroke:'#1e2535',strokeWidth:28}),
+      ...segs.map((s,i)=>h('circle',{key:i,cx,cy,r,fill:'none',stroke:s.col,strokeWidth:28,
+        strokeDasharray:`${s.len} ${circ-s.len}`,strokeDashoffset:s.off,
+        style:{transform:'rotate(-90deg)',transformOrigin:`${cx}px ${cy}px`}
+      }))
+    ),
+    h('div',{className:'leg'},
+      ...data.map((d,i)=>h('div',{key:i,className:'leg-item'},
+        h('div',{className:'leg-dot',style:{background:colors[i%colors.length]}}),d.name
+      ))
+    )
+  );
+}
+
+// ── Demo data ─────────────────────────────────────────────────────────────────
+function makeDemo(){
+  const base=['best running shoes','trail running shoes','running shoes for women','mens running shoes','nike running shoes','adidas ultraboost','hoka running shoes','brooks running shoes','best shoes for marathon','running shoes for flat feet','minimalist running shoes','cushioned running shoes','stability running shoes','road running shoes','carbon plate running shoes','on running shoes','new balance running shoes','saucony running shoes','asics gel nimbus','best budget running shoes','running shoes for beginners','wide toe box running shoes','waterproof running shoes','trail running gear','running accessories','compression socks running','running shorts women','running tights men','reflective running vest','hydration vest running','running insoles review','anti blister socks'];
+  const all=[...base,...Array.from({length:468},(_,i)=>`running keyword ${i+33}`)];
+  const gsc=all.map(q=>{
+    const pos=Math.max(1,Math.min(50,1+Math.random()*35));
+    const ctr=pos<=3?(0.18+Math.random()*0.12):pos<=10?(0.04+Math.random()*0.08):(0.005+Math.random()*0.02);
+    const impr=Math.floor(100+Math.random()*8000);
+    return{query:q,clicks:Math.floor(impr*ctr),impressions:impr,ctr:ctr*100,position:pos};
+  });
+  const paid=[
+    {campaign:'Google | Brand',platform:'Google Ads',impressions:45200,clicks:3840,spend:4200,conversions:128,conversionValue:19200},
+    {campaign:'Google | Non-Brand Running',platform:'Google Ads',impressions:182400,clicks:5470,spend:12800,conversions:87,conversionValue:13050},
+    {campaign:'Google | Shopping',platform:'Google Ads',impressions:312000,clicks:9360,spend:18400,conversions:234,conversionValue:35100},
+    {campaign:'Google | Remarketing',platform:'Google Ads',impressions:98000,clicks:2940,spend:5600,conversions:156,conversionValue:23400},
+    {campaign:'Meta | Prospecting',platform:'Meta Ads',impressions:520000,clicks:7800,spend:9800,conversions:62,conversionValue:9300},
+    {campaign:'Meta | Retargeting',platform:'Meta Ads',impressions:145000,clicks:4350,spend:6200,conversions:94,conversionValue:14100},
+    {campaign:'Meta | Lookalike',platform:'Meta Ads',impressions:280000,clicks:4200,spend:7400,conversions:45,conversionValue:6750},
+    {campaign:'Meta | UGC Creative Test',platform:'Meta Ads',impressions:98000,clicks:1960,spend:3100,conversions:28,conversionValue:4200},
+  ];
+  const platTotal=paid.reduce((s,c)=>s+c.conversionValue,0);
+  const crm={leads:872,mqls:312,sqls:198,closedWon:706,revenue:Math.floor(platTotal*0.85)};
+  const email=[
+    {campaign:'May Newsletter',sends:28400,opens:6532,clicks:1136,revenue:8420},
+    {campaign:'Memorial Day Sale',sends:28200,opens:9597,clicks:2820,revenue:31800},
+    {campaign:'New Arrival: Hoka Clifton 9',sends:24100,opens:6025,clicks:1688,revenue:14200},
+    {campaign:'Abandoned Cart #1',sends:3840,opens:1843,clicks:960,revenue:22400},
+    {campaign:'Abandoned Cart #2',sends:2100,opens:840,clicks:462,revenue:9800},
+    {campaign:'Win-Back: 90d Inactive',sends:8200,opens:984,clicks:246,revenue:2100},
+    {campaign:'Post-Purchase Cross-sell',sends:5640,opens:2256,clicks:847,revenue:11200},
+    {campaign:'Spring Running Guide',sends:28100,opens:7309,clicks:1124,revenue:6800},
+    {campaign:'Brooks Launch Flash Sale',sends:27800,opens:8340,clicks:2780,revenue:28400},
+    {campaign:'Loyalty Reward: VIP Early Access',sends:4200,opens:2310,clicks:966,revenue:18600},
+    {campaign:'Re-engagement Series #1',sends:6800,opens:952,clicks:136,revenue:880},
+    {campaign:'Summer Training Tips',sends:27900,opens:6697,clicks:836,revenue:4200},
+  ];
+  return{gsc,paid,crm,email};
+}
+
+// ── CTR curves ────────────────────────────────────────────────────────────────
+const CURVES={
+  ecommerce:{1:28.5,2:15.7,3:11.0,4:7.9,5:6.1,6:4.8,7:3.8,8:3.1,9:2.6,10:2.2},
+  b2b:{1:19.3,2:10.6,3:7.4,4:5.1,5:4.0,6:3.2,7:2.6,8:2.1,9:1.8,10:1.5}
+};
+function expCTR(pos,preset){
+  const c=CURVES[preset]||CURVES.ecommerce;
+  const p=Math.round(Math.max(1,Math.min(10,pos)));
+  return(c[p]||Math.max(0.5,10.5/pos))/100;
+}
+
+// ── Setup ─────────────────────────────────────────────────────────────────────
+function Setup({cfg,setCfg}){
+  const set=(k,v)=>setCfg(c=>({...c,[k]:v}));
+  const setR=(k,v)=>setCfg(c=>({...c,retainer:{...c.retainer,[k]:v}}));
+  const fi=(label,key,step)=>h('div',null,
+    h('label',{className:'flabel'},label),
+    h('input',{type:'number',step:step||1,value:cfg[key],onChange:ev=>set(key,+ev.target.value)})
+  );
+  return h('div',{className:'sy4',style:{maxWidth:640,margin:'16px auto 0'}},
+    h(Card,{title:'Client Information'},
+      h('div',{className:'g2'},
+        h('div',{style:{gridColumn:'span 2'}},
+          h('label',{className:'flabel'},'Client Name'),
+          h('input',{type:'text',value:cfg.clientName,placeholder:'e.g. Apex Running Co.',onChange:ev=>set('clientName',ev.target.value)})
+        ),
+        h('div',null,
+          h('label',{className:'flabel'},'Industry'),
+          h('select',{value:cfg.industry,onChange:ev=>set('industry',ev.target.value)},
+            h('option',{value:'ecommerce'},'Ecommerce — Retail'),
+            h('option',{value:'fitness'},'Ecommerce — Fitness/Health'),
+            h('option',{value:'saas'},'SaaS / Software'),
+            h('option',{value:'b2b'},'B2B Services'),
+            h('option',{value:'leadgen'},'Lead Gen / Professional Services'),
+            h('option',{value:'other'},'Other')
+          )
+        ),
+        h('div',null,
+          h('label',{className:'flabel'},'Revenue Model'),
+          h('select',{value:cfg.revenueModel,onChange:ev=>set('revenueModel',ev.target.value)},
+            h('option',{value:'ecommerce'},'Ecommerce — Direct Attribution'),
+            h('option',{value:'leadgen'},'Lead Gen — Estimated Revenue'),
+            h('option',{value:'hybrid'},'Hybrid')
+          )
+        )
+      )
+    ),
+
+    h(Card,{title:'Revenue Configuration'},
+      cfg.revenueModel!=='ecommerce'&&h('div',{className:'alert alert-y mb4'},
+        h('span',{className:'alert-icon'},'⚠️'),
+        h('div',null,
+          h('div',{className:'at-yel'},'Estimated Revenue Model'),
+          h('div',{className:'alert-body'},'All calculated revenue figures will be labeled "Est." throughout the app.')
+        )
+      ),
+      h('div',{className:'g2'},
+        fi('Average Order Value / AOV ($)','aov'),
+        fi('On-Site Conversion Rate (%)','convRate',0.01),
+        (cfg.revenueModel==='leadgen'||cfg.revenueModel==='hybrid')&&fi('Avg Deal Value ($)','dealValue'),
+        (cfg.revenueModel==='leadgen'||cfg.revenueModel==='hybrid')&&fi('Close Rate (%)','closeRate',0.1),
+        cfg.revenueModel==='leadgen'&&fi('Lead → SQL Rate (%)','sqlRate',0.1)
+      )
+    ),
+
+    h(Card,{title:'Agency Retainer'},
+      h('div',{style:{display:'flex',gap:24,marginBottom:16}},
+        h('label',{style:{display:'flex',alignItems:'center',gap:8,fontSize:13,cursor:'pointer'}},
+          h('input',{type:'radio',name:'rm',checked:cfg.retainerMode==='total',onChange:()=>set('retainerMode','total')}),'Total Retainer'),
+        h('label',{style:{display:'flex',alignItems:'center',gap:8,fontSize:13,cursor:'pointer'}},
+          h('input',{type:'radio',name:'rm',checked:cfg.retainerMode==='split',onChange:()=>set('retainerMode','split')}),'Split by Channel')
+      ),
+      cfg.retainerMode==='total'
+        ?h('div',{style:{maxWidth:200}},h('label',{className:'flabel'},'Monthly Retainer ($)'),h('input',{type:'number',value:cfg.retainer.total,onChange:ev=>setR('total',+ev.target.value)}))
+        :h('div',{className:'g3'},
+          h('div',null,h('label',{className:'flabel'},'SEO ($)'),h('input',{type:'number',value:cfg.retainer.seo||'',onChange:ev=>setR('seo',+ev.target.value)})),
+          h('div',null,h('label',{className:'flabel'},'Paid Media ($)'),h('input',{type:'number',value:cfg.retainer.paid||'',onChange:ev=>setR('paid',+ev.target.value)})),
+          h('div',null,h('label',{className:'flabel'},'Email ($)'),h('input',{type:'number',value:cfg.retainer.email||'',onChange:ev=>setR('email',+ev.target.value)}))
+        )
+    ),
+
+    h(Card,{title:'SEO & Attribution Settings'},
+      h('div',{className:'g2'},
+        h('div',null,
+          h('label',{className:'flabel'},'CTR Curve Preset ',h(Tip,{text:'Ecommerce shows higher CTR at top positions. B2B is more conservative.'})),
+          h('select',{value:cfg.ctrPreset,onChange:ev=>set('ctrPreset',ev.target.value)},
+            h('option',{value:'ecommerce'},'Ecommerce'),h('option',{value:'b2b'},'B2B')
+          )
+        ),
+        h('div',null,
+          h('label',{className:'flabel'},'Attribution Gap Alert (%) ',h(Tip,{text:'Flag paid data when platform revenue exceeds CRM revenue by more than this threshold.'})),
+          h('input',{type:'number',value:cfg.gapThreshold,onChange:ev=>set('gapThreshold',+ev.target.value)})
+        )
+      )
+    ),
+
+    h(Card,{title:'Email Benchmarks'},
+      h('div',{className:'g2'},
+        h('div',null,h('label',{className:'flabel'},'Benchmark Open Rate (%)'),h('input',{type:'number',step:'0.1',value:cfg.benchmarkOpen,onChange:ev=>set('benchmarkOpen',+ev.target.value)})),
+        h('div',null,h('label',{className:'flabel'},'Benchmark Click Rate (%)'),h('input',{type:'number',step:'0.1',value:cfg.benchmarkClick,onChange:ev=>set('benchmarkClick',+ev.target.value)}))
+      )
+    ),
+
+    h(Card,{title:'Active Channels'},
+      h('div',{style:{display:'flex',gap:24}},
+        ...(['seo','paid','email']).map(k=>h('label',{key:k,style:{display:'flex',alignItems:'center',gap:8,fontSize:13,cursor:'pointer'}},
+          h('input',{type:'checkbox',checked:cfg.channels[k],onChange:ev=>setCfg(c=>({...c,channels:{...c.channels,[k]:ev.target.checked}}))}),
+          k==='seo'?'Organic SEO':k==='paid'?'Paid Media':'Email Marketing'
+        ))
+      )
+    )
+  );
+}
+
+// ── Organic SEO ───────────────────────────────────────────────────────────────
+function SEOView({cfg,data,setData}){
+  const [filt,setFilt]=useState('');
+  const [sk,setSk]=useState('clicks');
+  const [sd,setSd]=useState(-1);
+  const [pg,setPg]=useState(0);
+  const PER=20;
+  const isEst=cfg.revenueModel!=='ecommerce';
+  const rpc=cfg.revenueModel==='leadgen'?cfg.dealValue*(cfg.closeRate/100):cfg.aov;
+
+  const rows=useMemo(()=>{
+    let r=data.filter(d=>!filt||(d.query||'').toLowerCase().includes(filt.toLowerCase()));
+    return[...r].sort((a,b)=>sd*((+a[sk]||0)-(+b[sk]||0)));
+  },[data,filt,sk,sd]);
+
+  const tc=useMemo(()=>rows.reduce((s,r)=>s+(+r.clicks||0),0),[rows]);
+  const ti=useMemo(()=>rows.reduce((s,r)=>s+(+r.impressions||0),0),[rows]);
+  const avgCTR=ti?tc/ti*100:0;
+  const avgPos=useMemo(()=>{const v=rows.filter(r=>+r.position>0);return v.length?v.reduce((s,r)=>s+(+r.position||0),0)/v.length:0;},[rows]);
+  const rev=tc*(cfg.convRate/100)*rpc;
+
+  const opps=useMemo(()=>data
+    .filter(r=>+r.position>=4&&+r.position<=20)
+    .map(r=>{
+      const cur=(+r.ctr||0)/100;
+      const tgt=expCTR(2,cfg.ctrPreset);
+      const gain=Math.max(0,(tgt-cur)*(+r.impressions||0));
+      return{...r,gain,impact:gain*(cfg.convRate/100)*rpc};
+    })
+    .filter(r=>r.gain>0)
+    .sort((a,b)=>b.impact-a.impact)
+    .slice(0,15)
+  ,[data,cfg]);
+
+  const sort=k=>{if(sk===k)setSd(d=>-d);else{setSk(k);setSd(-1);}};
+  const TH=(k,lbl)=>h('th',{className:'th-s',onClick:()=>sort(k)},lbl,sk===k?(sd>0?' ↑':' ↓'):'');
+  const pages=Math.ceil(rows.length/PER);
+  const paged=rows.slice(pg*PER,(pg+1)*PER);
+  const rb=h(Badge,{type:isEst?'est':'attr'},isEst?'Est.':'Attr.');
+
+  return h('div',{className:'sy5',style:{paddingTop:16}},
+    h('div',{className:'kpi-grid5'},
+      h(KPI,{label:'Total Clicks',value:fmtN(tc),tip:'Total clicks from Google Search Console'}),
+      h(KPI,{label:'Impressions',value:fmtN(ti),tip:'Total impressions across all queries'}),
+      h(KPI,{label:'Avg CTR',value:fmtP(avgCTR),tip:'Clicks ÷ Impressions'}),
+      h(KPI,{label:'Avg Position',value:avgPos>0?avgPos.toFixed(1):'—',tip:'Average ranking position'}),
+      h(KPI,{label:isEst?'Est. Organic Revenue':'Organic Revenue',value:fmt$(rev),hl:true,badge:rb,tip:'Clicks × Conversion Rate × Revenue per Conversion'})
+    ),
+
+    opps.length>0&&h(Card,{title:'Keyword Opportunity Model'},
+      h('p',{style:{fontSize:12,color:'#64748b',marginBottom:12}},'Queries ranking 4–20. Estimated traffic and revenue gain if moved to position 2 using the ',(cfg.ctrPreset==='b2b'?'B2B':'Ecommerce'),' CTR curve.'),
+      h('div',{className:'ow'},
+        h('table',null,
+          h('thead',null,h('tr',null,
+            h('th',null,'Query'),h('th',null,'Cur. Pos.'),h('th',null,'Impressions'),
+            h('th',null,'Clicks (now)'),h('th',null,'Traffic Gain'),h('th',null,'Revenue Impact')
+          )),
+          h('tbody',null,...opps.map((r,i)=>h('tr',{key:i},
+            h('td',{className:'trunc',style:{maxWidth:240}},r.query),
+            h('td',{className:'mn'},(+r.position).toFixed(1)),
+            h('td',{className:'mn'},fmtN(+r.impressions)),
+            h('td',{className:'mn'},fmtN(+r.clicks)),
+            h('td',{className:'green'},'+',fmtN(Math.round(r.gain))),
+            h('td',{className:'green'},'+',fmt$(r.impact))
+          )))
+        )
+      )
+    ),
+
+    h(Card,{
+      title:`Query Data (${fmtN(rows.length)} rows)`,
+      action:h('input',{type:'text',placeholder:'Filter queries…',value:filt,
+        onChange:ev=>{setFilt(ev.target.value);setPg(0);},
+        style:{width:200,padding:'6px 10px',fontSize:12}})
+    },
+      data.length===0
+        ?h(Fragment,null,
+            h(Empty,{icon:'🔍',title:'No GSC data loaded',desc:'Upload a Google Search Console CSV or click Load Demo Data.'}),
+            h('div',{style:{marginTop:16}},h(Uploader,{
+              label:'Drop GSC CSV export here',
+              hint:'Expected columns: Query, Clicks, Impressions, CTR, Position',
+              onParsed:(rows,fields)=>{
+                const f=n=>fields.find(x=>n.some(m=>x.toLowerCase().includes(m)));
+                setData(rows.map(r=>({
+                  query:r[f(['query'])]||r[Object.keys(r)[0]]||'',
+                  clicks:+(r[f(['click'])]||0),
+                  impressions:+(r[f(['impress'])]||0),
+                  ctr:parseFloat(r[f(['ctr'])]||0),
+                  position:parseFloat(r[f(['position','pos'])]||0),
+                })));
+              }
+            }))
+          )
+        :h(Fragment,null,
+            h('div',{className:'ow'},
+              h('table',null,
+                h('thead',null,h('tr',null,h('th',null,'Query'),TH('clicks','Clicks'),TH('impressions','Impressions'),TH('ctr','CTR'),TH('position','Position'))),
+                h('tbody',null,...paged.map((r,i)=>h('tr',{key:i},
+                  h('td',{className:'trunc',style:{maxWidth:280}},r.query),
+                  h('td',{className:'mn'},fmtN(+r.clicks||0)),
+                  h('td',{className:'mn'},fmtN(+r.impressions||0)),
+                  h('td',{className:'mn'},fmtP(+r.ctr||0)),
+                  h('td',{className:'mn'},(+r.position||0).toFixed(1))
+                )))
+              )
+            ),
+            h('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginTop:12,fontSize:11,color:'#64748b'}},
+              h('span',null,`Showing ${pg*PER+1}–${Math.min((pg+1)*PER,rows.length)} of ${fmtN(rows.length)}`),
+              h('div',{style:{display:'flex',gap:8}},
+                h('button',{className:'btn btn-s btn-sm',disabled:pg===0,onClick:()=>setPg(p=>p-1)},'← Prev'),
+                h('button',{className:'btn btn-s btn-sm',disabled:pg>=pages-1,onClick:()=>setPg(p=>p+1)},'Next →')
+              )
+            ),
+            h('button',{className:'btn btn-s btn-sm mt3',onClick:()=>setData([])},'Clear Data')
+          )
+    )
+  );
+}
+
+// ── Paid Media ────────────────────────────────────────────────────────────────
+function PaidView({cfg,paidData,setPaidData,crm,setCrm}){
+  const [crmTxt,setCrmTxt]=useState('');
+  const [crmErr,setCrmErr]=useState('');
+  const isEst=cfg.revenueModel!=='ecommerce';
+
+  const tot=useMemo(()=>({
+    spend:paidData.reduce((s,r)=>s+(+r.spend||0),0),
+    conv:paidData.reduce((s,r)=>s+(+r.conversions||0),0),
+    val:paidData.reduce((s,r)=>s+(+r.conversionValue||0),0),
+  }),[paidData]);
+
+  const roas=tot.spend?tot.val/tot.spend:0;
+  const crmROI=crm&&tot.spend?crm.revenue/tot.spend:0;
+  const gapPct=crm&&tot.val?Math.abs(1-crm.revenue/tot.val)*100:0;
+  const showGap=gapPct>(cfg.gapThreshold||20);
+
+  const importCRM=()=>{
+    setCrmErr('');
+    try{const p=JSON.parse(crmTxt);setCrm(p);}
+    catch{
+      Papa.parse(crmTxt.trim(),{header:true,complete:r=>{
+        if(r.data&&r.data.length){
+          const row=r.data[0];
+          const g=k=>+(Object.entries(row).find(([rk])=>rk.toLowerCase().includes(k))?.[1]||0);
+          setCrm({leads:g('lead'),mqls:g('mql'),sqls:g('sql'),closedWon:g('closed'),revenue:g('revenue')});
+        }else setCrmErr('Could not parse. Use JSON or CSV format.');
+      }});
+    }
+  };
+
+  return h('div',{className:'sy5',style:{paddingTop:16}},
+    h('div',{className:'kpi-grid5'},
+      h(KPI,{label:'Total Ad Spend',value:fmt$(tot.spend)}),
+      h(KPI,{label:'ROAS',value:fmtX(roas),hl:true,badge:h(Badge,{type:'attr'},'Platform'),tip:'Platform Conversion Value ÷ Total Spend'}),
+      h(KPI,{label:'Blended CRM ROI',value:crm?fmtX(crmROI):'—',badge:crm?h(Badge,{type:isEst?'est':'attr'},isEst?'Est.':'Attr.'):null,tip:'CRM Closed Revenue ÷ Total Ad Spend'}),
+      h(KPI,{label:'Conversions (Platform)',value:fmtN(tot.conv)}),
+      h(KPI,{label:'Attribution Gap',value:crm?fmtP(gapPct):'—',badge:showGap?h(Badge,{type:'gap'},'Alert'):null,tip:'Gap between platform-reported and CRM-confirmed revenue'})
+    ),
+
+    showGap&&crm&&h('div',{className:'alert alert-r'},
+      h('div',{className:'alert-icon'},'⚠️'),
+      h('div',null,
+        h('div',{className:'at-red'},`Attribution Gap Detected: ${fmtP(gapPct)}`),
+        h('div',{className:'alert-body'},
+          `Platform reports ${fmt$(tot.val)} in conversion value, but CRM shows ${fmt$(crm.revenue)} in closed revenue. `,
+          `Gap of ${fmt$(tot.val-crm.revenue)}. Review attribution windows and cross-device tracking.`
+        )
+      )
+    ),
+
+    h('div',{className:'grid2'},
+      h(Card,{title:'Platform Campaign Data'},
+        paidData.length===0
+          ?h(Fragment,null,
+              h(Empty,{icon:'📊',title:'No platform data',desc:'Upload a Google Ads or Meta Ads CSV export.'}),
+              h('div',{style:{marginTop:16}},h(Uploader,{
+                label:'Drop platform CSV here',
+                hint:'Columns: Campaign, Impressions, Clicks, Spend, Conversions, Conversion Value',
+                onParsed:(rows,fields)=>{
+                  const f=n=>fields.find(x=>n.some(m=>x.toLowerCase().includes(m)));
+                  setPaidData(rows.map(r=>({
+                    campaign:r[f(['campaign','name'])]||'',
+                    platform:r[f(['platform','network','source'])]||'Platform',
+                    impressions:+(r[f(['impress'])]||0),
+                    clicks:+(r[f(['click'])]||0),
+                    spend:parseFloat(r[f(['spend','cost','amount'])]||0),
+                    conversions:+(r[f(['conversion'])]||0),
+                    conversionValue:parseFloat(r[f(['value','revenue'])]||0),
+                  })));
+                }
+              }))
+            )
+          :h(Fragment,null,
+              h('div',{className:'ow'},
+                h('table',null,
+                  h('thead',null,h('tr',null,h('th',null,'Campaign'),h('th',null,'Platform'),h('th',null,'Spend'),h('th',null,'Conv.'),h('th',null,'Conv. Value'),h('th',null,'ROAS'))),
+                  h('tbody',null,...paidData.map((r,i)=>h('tr',{key:i},
+                    h('td',{className:'trunc',style:{maxWidth:160}},r.campaign),
+                    h('td',{className:'muted',style:{fontSize:11}},r.platform),
+                    h('td',{className:'mn'},fmt$(r.spend)),
+                    h('td',{className:'mn'},fmtN(r.conversions)),
+                    h('td',{className:'mn'},fmt$(r.conversionValue)),
+                    h('td',{className:'mn'},r.spend?fmtX(r.conversionValue/r.spend):'—')
+                  )))
+                )
+              ),
+              h('button',{className:'btn btn-s btn-sm mt3',onClick:()=>setPaidData([])},'Clear Data')
+            )
+      ),
+
+      h(Card,{title:'CRM Data'},
+        crm
+          ?h('div',{className:'sy4'},
+              h('div',{className:'g2'},
+                ...([['Leads',crm.leads],['MQLs',crm.mqls],['SQLs',crm.sqls],['Closed Won',crm.closedWon]].map(([l,v])=>
+                  h('div',{key:l,className:'kpi-card'},h('div',{className:'kpi-label'},l),h('div',{className:'kpi-val',style:{fontSize:18}},fmtN(v)))
+                ))
+              ),
+              h('div',{className:'kpi-card hl',style:{marginTop:12}},
+                h('div',{className:'kpi-label'},'CRM Closed Revenue',isEst&&h(Badge,{type:'est'},'Est.')),
+                h('div',{className:'kpi-val blue'},fmt$(crm.revenue))
+              ),
+              h('button',{className:'btn btn-s btn-sm mt3',onClick:()=>setCrm(null)},'Clear CRM Data')
+            )
+          :h('div',{className:'sy4'},
+              h('p',{style:{fontSize:12,color:'#64748b'}},'Paste JSON or CSV. Fields: leads, mqls, sqls, closedWon, revenue'),
+              h('textarea',{rows:5,value:crmTxt,placeholder:'{"leads":400,"mqls":150,"sqls":90,"closedWon":60,"revenue":90000}',
+                onChange:ev=>setCrmTxt(ev.target.value),style:{fontSize:12,fontFamily:'DM Mono,monospace',resize:'vertical'}}),
+              crmErr&&h('p',{style:{color:'#ef4444',fontSize:12,marginTop:4}},crmErr),
+              h('button',{className:'btn btn-p',style:{marginTop:8},onClick:importCRM},'Import CRM Data')
+            )
+      )
+    )
+  );
+}
+
+// ── Email ─────────────────────────────────────────────────────────────────────
+function EmailView({cfg,emailData,setEmailData}){
+  const tot=useMemo(()=>({
+    sends:emailData.reduce((s,r)=>s+(+r.sends||0),0),
+    opens:emailData.reduce((s,r)=>s+(+r.opens||0),0),
+    clicks:emailData.reduce((s,r)=>s+(+r.clicks||0),0),
+    rev:emailData.reduce((s,r)=>s+(+r.revenue||0),0),
+  }),[emailData]);
+  const or=tot.sends?tot.opens/tot.sends*100:0;
+  const cr=tot.sends?tot.clicks/tot.sends*100:0;
+  const rps=tot.sends&&tot.rev?tot.rev/tot.sends:0;
+  const hasAttr=tot.rev>0;
+  const estRev=tot.clicks*(cfg.convRate/100)*cfg.aov;
+  const dispRev=hasAttr?tot.rev:estRev;
+  const isEst=!hasAttr||cfg.revenueModel!=='ecommerce';
+  const health=Math.round(Math.min(50,(or/(cfg.benchmarkOpen||20))*50)+Math.min(50,(cr/(cfg.benchmarkClick||2.5))*50));
+
+  return h('div',{className:'sy5',style:{paddingTop:16}},
+    h('div',{className:'kpi-grid5'},
+      h(KPI,{label:'Total Sends',value:fmtN(tot.sends)}),
+      h(KPI,{label:'Open Rate',value:fmtP(or),tip:`Benchmark: ${cfg.benchmarkOpen}%`,
+        badge:or>0?h(Badge,{type:or>=cfg.benchmarkOpen?'attr':'gap'},or>=cfg.benchmarkOpen?'↑ Above benchmark':'↓ Below benchmark'):null}),
+      h(KPI,{label:'Click Rate',value:fmtP(cr),tip:`Benchmark: ${cfg.benchmarkClick}%`}),
+      h(KPI,{label:'Revenue / Send',value:rps>0?'$'+rps.toFixed(3):'—',tip:'Total revenue ÷ total sends'}),
+      h(KPI,{label:hasAttr?'Email Revenue':'Est. Email Revenue',value:fmt$(dispRev),hl:true,
+        badge:h(Badge,{type:isEst?'est':'attr'},isEst?'Est.':'Attr.'),
+        tip:hasAttr?'Platform-attributed revenue':'Modeled: Clicks × Conv. Rate × AOV'})
+    ),
+
+    !hasAttr&&emailData.length>0&&h('div',{className:'alert alert-b'},
+      h('div',{className:'alert-icon'},'ℹ️'),
+      h('div',null,
+        h('div',{className:'at-blu'},'No Platform Revenue Attribution'),
+        h('div',{className:'alert-body'},`Revenue modeled from ${fmtN(tot.clicks)} email clicks × ${cfg.convRate}% conversion rate × ${fmt$(cfg.aov)} AOV.`)
+      )
+    ),
+
+    h('div',{className:'grid3'},
+      h('div',{className:'section-card',style:{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:16}},
+        h(Gauge,{score:health,size:140}),
+        emailData.length>0&&h('div',{style:{width:'100%',fontSize:11}},
+          h('div',{style:{display:'flex',justifyContent:'space-between',marginBottom:6}},
+            h('span',{style:{color:'#64748b'}},'Open Rate'),
+            h('span',{style:{fontFamily:'DM Mono',fontSize:12}},fmtP(or),h('span',{style:{color:'#64748b'}},' / '+fmtP(cfg.benchmarkOpen)+' bench'))
+          ),
+          h('div',{style:{display:'flex',justifyContent:'space-between'}},
+            h('span',{style:{color:'#64748b'}},'Click Rate'),
+            h('span',{style:{fontFamily:'DM Mono',fontSize:12}},fmtP(cr),h('span',{style:{color:'#64748b'}},' / '+fmtP(cfg.benchmarkClick)+' bench'))
+          )
+        )
+      ),
+
+      h(Card,{title:`Email Campaigns (${emailData.length})`},
+        emailData.length===0
+          ?h(Fragment,null,
+              h(Empty,{icon:'📧',title:'No email data',desc:'Upload a Klaviyo, HubSpot, or Mailchimp CSV export.'}),
+              h('div',{style:{marginTop:16}},h(Uploader,{
+                label:'Drop email platform CSV here',
+                hint:'Columns: Campaign, Sends, Opens, Clicks, Revenue (optional)',
+                onParsed:(rows,fields)=>{
+                  const f=n=>fields.find(x=>n.some(m=>x.toLowerCase().includes(m)));
+                  setEmailData(rows.map(r=>({
+                    campaign:r[f(['campaign','name','subject','email name'])]||'',
+                    sends:+(r[f(['send','deliver','recipient'])]||0),
+                    opens:+(r[f(['open','unique open'])]||0),
+                    clicks:+(r[f(['click','unique click'])]||0),
+                    revenue:parseFloat(r[f(['revenue','attributed','sales'])]||0),
+                  })));
+                }
+              }))
+            )
+          :h(Fragment,null,
+              h('div',{className:'ow'},
+                h('table',null,
+                  h('thead',null,h('tr',null,h('th',null,'Campaign'),h('th',null,'Sends'),h('th',null,'Open Rate'),h('th',null,'Click Rate'),h('th',null,'Revenue'))),
+                  h('tbody',null,...emailData.map((r,i)=>h('tr',{key:i},
+                    h('td',{className:'trunc',style:{maxWidth:220}},r.campaign),
+                    h('td',{className:'mn'},fmtN(r.sends)),
+                    h('td',{className:'mn'},r.sends?fmtP(r.opens/r.sends*100):'—'),
+                    h('td',{className:'mn'},r.sends?fmtP(r.clicks/r.sends*100):'—'),
+                    h('td',{className:'mn'},r.revenue?fmt$(r.revenue):h('span',{className:'muted'},'not tracked'))
+                  )))
+                )
+              ),
+              h('button',{className:'btn btn-s btn-sm mt3',onClick:()=>setEmailData([])},'Clear Data')
+            )
+      )
+    )
+  );
+}
+
+// ── ROI Summary ───────────────────────────────────────────────────────────────
+function Summary({cfg,gsc,paid,crm,email}){
+  const isEst=cfg.revenueModel!=='ecommerce';
+  const rpc=cfg.revenueModel==='leadgen'?cfg.dealValue*(cfg.closeRate/100):cfg.aov;
+  const COLORS=['#3b82f6','#8b5cf6','#22c55e'];
+
+  const seoRev=gsc.reduce((s,r)=>s+(+r.clicks||0),0)*(cfg.convRate/100)*rpc;
+  const paidRev=crm?crm.revenue:paid.reduce((s,r)=>s+(+r.conversionValue||0),0);
+  const paidSpend=paid.reduce((s,r)=>s+(+r.spend||0),0);
+  const emailAttr=email.reduce((s,r)=>s+(+r.revenue||0),0);
+  const emailClicks=email.reduce((s,r)=>s+(+r.clicks||0),0);
+  const emailRev=emailAttr>0?emailAttr:emailClicks*(cfg.convRate/100)*cfg.aov;
+
+  const ret={
+    seo:cfg.retainerMode==='split'?(cfg.retainer.seo||0):Math.floor((cfg.retainer.total||0)/3),
+    paid:cfg.retainerMode==='split'?(cfg.retainer.paid||0):paidSpend||Math.floor((cfg.retainer.total||0)/3),
+    email:cfg.retainerMode==='split'?(cfg.retainer.email||0):Math.floor((cfg.retainer.total||0)/3),
+  };
+  const totalRet=cfg.retainerMode==='total'?(cfg.retainer.total||0):(cfg.retainer.seo||0)+(cfg.retainer.paid||0)+(cfg.retainer.email||0);
+
+  const channels=[
+    {key:'seo',name:'Organic SEO',rev:cfg.channels.seo?seoRev:0,ret:ret.seo,est:isEst,col:COLORS[0]},
+    {key:'paid',name:'Paid Media',rev:cfg.channels.paid?paidRev:0,ret:ret.paid,est:isEst&&!crm,col:COLORS[1]},
+    {key:'email',name:'Email',rev:cfg.channels.email?emailRev:0,ret:ret.email,est:isEst||emailAttr===0,col:COLORS[2]},
+  ];
+  const totalRev=channels.reduce((s,c)=>s+c.rev,0);
+  const blended=totalRet?totalRev/totalRet:0;
+  const hasData=totalRev>0;
+
+  const copy=()=>{
+    const lines=[
+      `${cfg.clientName||'Client'} — ROI Summary`,
+      new Date().toLocaleDateString('en-US',{month:'long',year:'numeric'}),'',
+      `TOTAL REVENUE: ${fmt$(totalRev)}`,
+      `BLENDED ROI: ${fmtX(blended)} per $1 invested`,'',
+      'Channel Breakdown:',
+      ...channels.filter(c=>c.rev>0).map(c=>`  ${c.name}: ${fmt$(c.rev)} (${totalRev?fmtP(c.rev/totalRev*100):'0%'})`),
+      '',`Total Monthly Retainer: ${fmt$(totalRet)}`,
+      isEst?'\n* Revenue values are modeled estimates.':''
+    ];
+    navigator.clipboard.writeText(lines.join('\n')).then(()=>alert('Copied to clipboard!'));
+  };
+
+  return h('div',{className:'sy5',style:{paddingTop:16}},
+    h('div',{className:'kpi-grid4'},
+      h(KPI,{label:'Total Revenue',value:fmt$(totalRev),hl:true,badge:h(Badge,{type:isEst?'est':'attr'},isEst?'Est.':'Attr.')}),
+      h(KPI,{label:'Blended ROI',value:fmtX(blended),hl:true,tip:'Total Revenue ÷ Total Retainer'}),
+      h(KPI,{label:'Total Retainer',value:fmt$(totalRet)}),
+      h(KPI,{label:'Active Channels',value:Object.values(cfg.channels).filter(Boolean).length.toString()})
+    ),
+
+    !hasData&&h('div',{className:'section-card',style:{textAlign:'center',padding:48}},
+      h('div',{style:{fontSize:36,marginBottom:12}},'📈'),
+      h('div',{style:{fontWeight:500,color:'#94a3b8',marginBottom:6}},'No revenue data yet'),
+      h('div',{style:{fontSize:13,color:'#64748b'}},'Load data in the channel tabs or click Load Demo Data.')
+    ),
+
+    hasData&&h(Fragment,null,
+      h('div',{className:'grid2'},
+        h(Card,{title:'Channel Revenue Breakdown'},
+          h('table',null,
+            h('thead',null,h('tr',null,
+              h('th',null,'Channel'),h('th',null,'Revenue'),h('th',null,'% of Total'),h('th',null,'Type'),
+              cfg.retainerMode==='split'&&h('th',null,'Channel ROI')
+            )),
+            h('tbody',null,
+              ...channels.map((c,i)=>h('tr',{key:i},
+                h('td',null,h('span',{style:{display:'inline-block',width:8,height:8,borderRadius:'50%',background:c.col,marginRight:8}}),c.name),
+                h('td',{className:'mn'},fmt$(c.rev)),
+                h('td',{className:'mn'},totalRev?fmtP(c.rev/totalRev*100):'—'),
+                h('td',null,h(Badge,{type:c.est?'est':'attr'},c.est?'Est.':'Attr.')),
+                cfg.retainerMode==='split'&&h('td',{className:'mn'},c.ret?fmtX(c.rev/c.ret):'—')
+              )),
+              h('tr',{style:{borderTop:'2px solid #252d40'}},
+                h('td',{style:{fontWeight:600}},'Total'),
+                h('td',{className:'mn',style:{color:'#3b82f6',fontWeight:600}},fmt$(totalRev)),
+                h('td',{className:'mn'},'100%'),
+                h('td',null),cfg.retainerMode==='split'&&h('td',null)
+              )
+            )
+          )
+        ),
+        h(Card,{title:'Channel Contribution'},
+          h('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',paddingTop:8}},
+            h(Donut,{
+              data:channels.filter(c=>c.rev>0).map(c=>({name:c.name,value:Math.round(c.rev)})),
+              colors:COLORS
+            })
+          )
+        )
+      ),
+
+      h(Card,{title:'Retainer Efficiency'},
+        h('div',{style:{display:'flex',alignItems:'center',gap:24}},
+          h('div',{style:{flex:1}},
+            ...channels.filter(c=>c.rev>0).map((c,i)=>{
+              const spend=c.ret||(totalRet/3);
+              const roi=spend?c.rev/spend:0;
+              return h('div',{key:i,className:'rbar-wrap'},
+                h('div',{className:'rbar-head'},
+                  h('span',null,c.name),
+                  h('span',{style:{fontFamily:'DM Mono',fontSize:12}},fmtX(roi),' ROI')
+                ),
+                h('div',{className:'rbar-track'},
+                  h('div',{className:'rbar-fill',style:{width:Math.min(100,roi*20)+'%',background:c.col}})
+                )
+              );
+            })
+          ),
+          h('div',{className:'roi-box'},
+            h('div',{className:'roi-lbl'},'Blended ROI'),
+            h('div',{className:'roi-num'},fmtX(blended)),
+            h('div',{className:'roi-sub'},'per $1 invested')
+          )
+        )
+      ),
+
+      h('div',{style:{display:'flex',gap:12}},
+        h('button',{className:'btn btn-p',onClick:copy},'📋 Copy Slide Summary'),
+        h('button',{className:'btn btn-s',onClick:()=>window.print()},'🖨 Print / Export PDF')
+      )
+    )
+  );
+}
+
+// ── App ───────────────────────────────────────────────────────────────────────
+function App(){
+  const [tab,setTab]=useState('setup');
+  const [demo,setDemo]=useState(false);
+  const [cfg,setCfg]=useState({
+    clientName:'',industry:'ecommerce',revenueModel:'ecommerce',
+    aov:150,convRate:2.5,dealValue:5000,closeRate:20,sqlRate:30,
+    ctrPreset:'ecommerce',gapThreshold:20,
+    benchmarkOpen:20,benchmarkClick:2.5,
+    retainerMode:'total',retainer:{total:12000,seo:4000,paid:5000,email:3000},
+    channels:{seo:true,paid:true,email:true}
+  });
+  const [gsc,setGsc]=useState([]);
+  const [paid,setPaid]=useState([]);
+  const [crm,setCrm]=useState(null);
+  const [email,setEmail]=useState([]);
+
+  const loadDemo=()=>{
+    const d=makeDemo();
+    setCfg(c=>({...c,clientName:'Apex Running Co.',industry:'fitness',revenueModel:'ecommerce',aov:150,convRate:2.5}));
+    setGsc(d.gsc);setPaid(d.paid);setCrm(d.crm);setEmail(d.email);
+    setDemo(true);
+  };
+
+  const TABS=[
+    {id:'setup',lbl:'⚙ Setup'},
+    {id:'seo',lbl:'🔍 Organic SEO'},
+    {id:'paid',lbl:'💰 Paid Media'},
+    {id:'email',lbl:'📧 Email'},
+    {id:'summary',lbl:'📊 ROI Summary'},
+  ];
+
+  return h('div',{style:{minHeight:'100vh'}},
+    h('header',{className:'app-header'},
+      h('div',{style:{display:'flex',alignItems:'center',gap:8}},
+        h('span',{className:'logo'},'ROI ',h('span',{className:'logo-a'},'Machine')),
+        cfg.clientName&&h('span',{style:{fontSize:13,color:'#64748b'}},'/ '+cfg.clientName)
+      ),
+      h('div',{style:{display:'flex',alignItems:'center',gap:12}},
+        demo&&h('span',{style:{fontSize:11,color:'#64748b',border:'1px solid #252d40',padding:'3px 8px',borderRadius:4}},'Demo Data Active'),
+        h('button',{className:'btn btn-ok',onClick:loadDemo},'Load Demo Data')
+      )
+    ),
+    h('nav',{className:'app-nav'},
+      ...TABS.map(t=>h('button',{key:t.id,className:'nav-tab'+(tab===t.id?' active':''),onClick:()=>setTab(t.id)},t.lbl))
+    ),
+    h('main',{className:'app-main'},
+      tab==='setup'&&h(Setup,{cfg,setCfg}),
+      tab==='seo'&&h(SEOView,{cfg,data:gsc,setData:setGsc}),
+      tab==='paid'&&h(PaidView,{cfg,paidData:paid,setPaidData:setPaid,crm,setCrm}),
+      tab==='email'&&h(EmailView,{cfg,emailData:email,setEmailData:setEmail}),
+      tab==='summary'&&h(Summary,{cfg,gsc,paid,crm,email})
+    )
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(h(App,null));
+</script>
+</body>
+</html>
