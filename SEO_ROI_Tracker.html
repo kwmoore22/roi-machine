@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font-sans); color: var(--color-text-primary); padding: 1.5rem; font-size: 13px; background: transparent; }
+
+.top-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 10px; }
+.top-bar h1 { font-size: 18px; font-weight: 500; }
+.top-bar p { font-size: 12px; color: var(--color-text-secondary); margin-top: 3px; }
+
+.input-grid-2 { display: grid; grid-template-columns: repeat(2,1fr); gap: 12px; margin-bottom: 0.5rem; }
+.input-box { border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); padding: 14px; background: var(--color-background-primary); }
+.box-title { font-weight: 500; font-size: 13px; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
+.box-title-dot { width: 8px; height: 8px; border-radius: 2px; display: inline-block; flex-shrink: 0; }
+.box-subtitle { font-size: 11px; color: var(--color-text-secondary); margin-bottom: 10px; line-height: 1.5; }
+textarea { width: 100%; height: 110px; border: 1px solid var(--color-border-secondary); border-radius: var(--border-radius-md); padding: 8px 10px; font-size: 12px; font-family: var(--font-mono); background: var(--color-background-secondary); color: var(--color-text-primary); resize: vertical; outline: none; transition: border-color 0.15s, box-shadow 0.15s; box-shadow: inset 0 1px 2px rgba(0,0,0,0.04); }
+textarea:focus { border-color: #2175c8; box-shadow: inset 0 1px 2px rgba(0,0,0,0.04), 0 0 0 3px rgba(33,117,200,0.12); }
+textarea::placeholder { color: var(--color-text-secondary); opacity: 0.55; }
+.status { font-size: 11px; margin-top: 5px; min-height: 14px; }
+.ok { color: #0F6E56; } .err { color: #993C1D; } .warn { color: #854F0B; }
+
+.conv-value-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.conv-value-row label { font-size: 11px; color: var(--color-text-secondary); white-space: nowrap; }
+.conv-input-wrap { display: flex; align-items: center; border: 1px solid var(--color-border-secondary); border-radius: var(--border-radius-md); background: var(--color-background-secondary); overflow: hidden; flex: 1; transition: border-color 0.15s, box-shadow 0.15s; box-shadow: inset 0 1px 2px rgba(0,0,0,0.04); }
+.conv-input-wrap:focus-within { border-color: #2175c8; box-shadow: inset 0 1px 2px rgba(0,0,0,0.04), 0 0 0 3px rgba(33,117,200,0.12); }
+.conv-prefix { padding: 5px 7px 5px 9px; font-size: 13px; color: var(--color-text-secondary); flex-shrink: 0; }
+.conv-input-wrap input[type=number] { flex: 1; padding: 5px 8px 5px 0; border: none; background: transparent; color: var(--color-text-primary); font-family: inherit; font-size: 13px; outline: none; min-width: 0; }
+
+.divider { border: none; border-top: 0.5px solid var(--color-border-tertiary); margin: 1.25rem 0; }
+
+/* segmented controls */
+.seg-row { display: flex; align-items: center; gap: 0; border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); overflow: hidden; width: fit-content; }
+.seg-btn { padding: 6px 18px; font-size: 12px; font-family: inherit; cursor: pointer; border: none; background: transparent; color: var(--color-text-secondary); transition: background 0.12s, color 0.12s; white-space: nowrap; }
+.seg-btn.active { background: var(--color-text-primary); color: var(--color-background-primary); }
+.seg-btn:not(.active):hover { background: var(--color-background-secondary); }
+.seg-sep { width: 0.5px; background: var(--color-border-tertiary); align-self: stretch; }
+
+/* config */
+.config-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; }
+.config-box { border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); padding: 14px; background: var(--color-background-primary); }
+.config-box label { display: block; font-size: 11px; color: var(--color-text-secondary); margin-bottom: 6px; }
+.input-wrap { display: flex; align-items: center; border: 1px solid var(--color-border-secondary); border-radius: var(--border-radius-md); background: var(--color-background-secondary); overflow: hidden; transition: border-color 0.15s, box-shadow 0.15s; box-shadow: inset 0 1px 2px rgba(0,0,0,0.04); }
+.input-wrap:focus-within { border-color: #2175c8; box-shadow: inset 0 1px 2px rgba(0,0,0,0.04), 0 0 0 3px rgba(33,117,200,0.12); }
+.input-prefix { padding: 6px 8px 6px 10px; font-size: 13px; color: var(--color-text-secondary); flex-shrink: 0; }
+.input-wrap input[type=number] { flex: 1; padding: 6px 9px 6px 0; border: none; background: transparent; color: var(--color-text-primary); font-family: inherit; font-size: 13px; outline: none; min-width: 0; }
+.config-hint { font-size: 11px; color: var(--color-text-secondary); margin-top: 6px; line-height: 1.5; }
+.rps-derived { font-size: 11px; margin-top: 6px; min-height: 14px; }
+.rps-derived.active { color: #0F6E56; font-weight: 500; }
+
+/* results */
+.results-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex-wrap: wrap; gap: 8px; }
+.view-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px,1fr)); gap: 8px; margin-bottom: 1.25rem; }
+.card { background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 12px 14px; }
+.card .lbl { font-size: 11px; color: var(--color-text-secondary); margin-bottom: 3px; }
+.card .val { font-size: 20px; font-weight: 500; line-height: 1.2; }
+.card .sub { font-size: 11px; color: var(--color-text-secondary); margin-top: 3px; }
+
+.status-banner { border-radius: var(--border-radius-md); padding: 10px 14px; font-size: 12px; font-weight: 500; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 8px; }
+.status-banner.positive { background: #E1F5EE; color: #0F6E56; }
+.status-banner.negative { background: #FAECE7; color: #993C1D; }
+.status-banner.neutral { background: var(--color-background-secondary); color: var(--color-text-secondary); }
+
+/* view explainer */
+.view-explainer { font-size: 11px; color: var(--color-text-secondary); background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 8px 12px; margin-bottom: 1rem; line-height: 1.6; }
+
+.chart-wrap { position: relative; width: 100%; height: 300px; margin-bottom: 1.5rem; }
+.legend { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 10px; font-size: 12px; color: var(--color-text-secondary); }
+.legend span { display: flex; align-items: center; gap: 5px; }
+.leg-dot { width: 10px; height: 10px; border-radius: 2px; display: inline-block; flex-shrink: 0; }
+.leg-line { width: 18px; height: 2px; display: inline-block; flex-shrink: 0; }
+.leg-line.dashed { background: repeating-linear-gradient(90deg,currentColor 0,currentColor 4px,transparent 4px,transparent 8px); }
+.leg-item { display: flex; align-items: center; gap: 5px; cursor: pointer; padding: 3px 7px; border-radius: var(--border-radius-md); border: 0.5px solid transparent; transition: border-color 0.12s, opacity 0.12s; user-select: none; }
+.leg-item:hover { border-color: var(--color-border-tertiary); background: var(--color-background-secondary); }
+.leg-item.hidden { opacity: 0.35; }
+
+.table-section { margin-bottom: 1.25rem; }
+.table-title { font-size: 13px; font-weight: 500; margin-bottom: 8px; }
+.table-wrap { overflow-x: auto; }
+.data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.data-table th { font-size: 11px; font-weight: 500; color: var(--color-text-secondary); text-align: left; padding: 5px 10px; border-bottom: 0.5px solid var(--color-border-tertiary); white-space: nowrap; }
+.data-table td { padding: 6px 10px; border-bottom: 0.5px solid var(--color-border-tertiary); white-space: nowrap; }
+.data-table tr:last-child td { border-bottom: none; }
+.data-table tr.be-row td { font-weight: 600; background: rgba(29,158,117,0.06); }
+.pos { color: #0F6E56; } .neg { color: #993C1D; } .dim { color: var(--color-text-secondary); }
+
+.hint { font-size: 11px; color: var(--color-text-secondary); line-height: 1.5; margin-top: 6px; }
+.btn { padding: 8px 16px; border-radius: var(--border-radius-md); border: 1px solid var(--color-border-secondary); background: var(--color-background-primary); color: var(--color-text-primary); cursor: pointer; font-family: inherit; font-size: 13px; font-weight: 500; transition: background 0.12s, box-shadow 0.12s, transform 0.05s; box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
+.btn:hover { background: var(--color-background-secondary); }
+.btn:active { transform: translateY(1px); }
+.btn.primary { background: #2175c8; color: #ffffff; border-color: transparent; padding: 9px 22px; box-shadow: 0 1px 3px rgba(33,117,200,0.4); }
+.btn.primary:hover { background: #1a5fa8; box-shadow: 0 2px 6px rgba(33,117,200,0.5); }
+.section-label { font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-secondary); margin-bottom: 10px; }
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+  <div>
+    <h1>SEO ROI tracker</h1>
+    <p>Live campaign performance — actuals vs. baseline, cumulative cost vs. value</p>
+  </div>
+  <button class="btn primary" id="btn-run">Calculate ROI</button>
+</div>
+
+<!-- business type toggle -->
+<div class="seg-row" style="margin-bottom:1.25rem">
+  <button class="seg-btn active" id="mode-revenue" onclick="setMode('revenue')">Revenue-based</button>
+  <div class="seg-sep"></div>
+  <button class="seg-btn" id="mode-leads" onclick="setMode('leads')">Lead-based</button>
+</div>
+
+<!-- ── BASELINE ── -->
+<div class="section-label">Pre-campaign baseline</div>
+<div class="input-grid-2" style="margin-bottom:0.5rem">
+  <div class="input-box">
+    <div class="box-title"><span class="box-title-dot" style="background:#888780"></span>Historical sessions</div>
+    <div class="box-subtitle">Paste sessions from before the campaign started. Used to build a monthly baseline — what would have happened without SEO.</div>
+    <textarea id="ta-baseline" placeholder="Jan-23&#9;28000&#10;Feb-23&#9;29500&#10;...&#10;Dec-24&#9;36000&#10;(13+ months recommended)"></textarea>
+    <div class="status" id="st-baseline"></div>
+  </div>
+  <div class="input-box" id="box-baseline-rev">
+    <div class="box-title"><span class="box-title-dot" style="background:#BA7517"></span>Historical revenue <span style="font-weight:400;color:var(--color-text-secondary);font-size:11px;margin-left:2px">optional</span></div>
+    <div class="box-subtitle">Paste pre-campaign revenue to auto-calculate revenue per session.</div>
+    <textarea id="ta-baseline-rev" placeholder="Jan-23&#9;71000&#10;Feb-23&#9;74000&#10;..."></textarea>
+    <div class="status" id="st-baseline-rev"></div>
+  </div>
+  <div class="input-box" id="box-baseline-conv" style="display:none">
+    <div class="box-title"><span class="box-title-dot" style="background:#534AB7"></span>Historical conversions <span style="font-weight:400;color:var(--color-text-secondary);font-size:11px;margin-left:2px">optional</span></div>
+    <div class="box-subtitle">Paste pre-campaign monthly conversion counts to auto-calculate avg. value per session from leads.</div>
+    <textarea id="ta-baseline-conv" placeholder="Jan-23&#9;310&#10;Feb-23&#9;328&#10;..."></textarea>
+    <div class="status" id="st-baseline-conv"></div>
+  </div>
+</div>
+<div class="hint" style="margin-bottom:0">The last month of baseline data is the campaign start point. Actuals should begin the month after.</div>
+
+<div class="divider"></div>
+
+<!-- ── ACTUALS ── -->
+<div class="section-label">Campaign actuals</div>
+<div class="input-grid-2" style="margin-bottom:0.5rem">
+  <div class="input-box">
+    <div class="box-title"><span class="box-title-dot" style="background:#7F77DD"></span>Actual sessions</div>
+    <div class="box-subtitle">Paste sessions month by month as they come in. Add a new row each month.</div>
+    <textarea id="ta-actuals" placeholder="Jan-25&#9;38500&#10;Feb-25&#9;41200&#10;Mar-25&#9;44800&#10;..."></textarea>
+    <div class="status" id="st-actuals"></div>
+  </div>
+  <div class="input-box" id="box-actuals-rev">
+    <div class="box-title"><span class="box-title-dot" style="background:#1D9E75"></span>Actual revenue <span style="font-weight:400;color:var(--color-text-secondary);font-size:11px;margin-left:2px">optional</span></div>
+    <div class="box-subtitle">Paste actual revenue figures for a direct comparison instead of using the per-session estimate.</div>
+    <textarea id="ta-actuals-rev" placeholder="Jan-25&#9;98000&#10;Feb-25&#9;107000&#10;..."></textarea>
+    <div class="status" id="st-actuals-rev"></div>
+  </div>
+  <div class="input-box" id="box-actuals-conv" style="display:none">
+    <div class="box-title"><span class="box-title-dot" style="background:#534AB7"></span>Actual conversions <span style="font-weight:400;color:var(--color-text-secondary);font-size:11px;margin-left:2px">optional</span></div>
+    <div class="box-subtitle">Paste actual monthly conversion counts (leads, sign-ups, etc.).</div>
+    <textarea id="ta-actuals-conv" placeholder="Jan-25&#9;420&#10;Feb-25&#9;465&#10;..."></textarea>
+    <div class="conv-value-row">
+      <label for="conv-value">Value per conversion</label>
+      <div class="conv-input-wrap"><span class="conv-prefix">$</span><input type="number" id="conv-value" placeholder="0" min="0" step="1"></div>
+    </div>
+    <div class="status" id="st-actuals-conv"></div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ── SETTINGS ── -->
+<div class="section-label">Campaign settings</div>
+<div class="config-grid">
+  <div class="config-box">
+    <label id="lbl-rps">Revenue per session</label>
+    <div class="input-wrap"><span class="input-prefix">$</span><input type="number" id="cfg-rps" placeholder="0.00" min="0" step="0.01"></div>
+    <div class="rps-derived" id="rps-derived"></div>
+    <div class="config-hint" id="hint-rps">Auto-calculated from historical data, or enter manually.</div>
+  </div>
+  <div class="config-box">
+    <label>Monthly SEO cost</label>
+    <div class="input-wrap"><span class="input-prefix">$</span><input type="number" id="cfg-monthly" placeholder="0" min="0" step="1"></div>
+    <div class="config-hint">Ongoing monthly retainer or blended spend.</div>
+  </div>
+  <div class="config-box">
+    <label>Months in campaign so far</label>
+    <div class="input-wrap"><input type="number" id="cfg-months" placeholder="auto" min="1" step="1" style="padding-left:10px"></div>
+    <div class="config-hint">Auto-detected from actuals. Override if needed.</div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ── BRAND ATTRIBUTION ── -->
+<div class="section-label">Brand attribution <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--color-text-secondary);font-size:11px">optional</span></div>
+<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:0.5rem">
+  <div class="config-box">
+    <label>Branded traffic %</label>
+    <div class="input-wrap"><input type="number" id="cfg-brand-pct" placeholder="e.g. 35" min="0" max="100" step="1" style="padding-left:10px"><span style="padding:6px 10px 6px 4px;font-size:13px;color:var(--color-text-secondary)">%</span></div>
+    <div class="config-hint">From GSC — % of clicks that are branded queries. SEO gets <strong id="brand-weight-lbl">15%</strong> credit for branded lift.</div>
+  </div>
+  <div class="config-box">
+    <label>Non-brand traffic %</label>
+    <div class="input-wrap"><input type="number" id="cfg-nonbrand-pct" placeholder="e.g. 65" min="0" max="100" step="1" style="padding-left:10px"><span style="padding:6px 10px 6px 4px;font-size:13px;color:var(--color-text-secondary)">%</span></div>
+    <div class="config-hint">From GSC — % of clicks that are non-branded queries. SEO gets <strong>100%</strong> credit for non-brand lift.</div>
+  </div>
+</div>
+<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:0.5rem">
+  <div class="config-box">
+    <label>Brand attribution weight <span style="font-weight:400;color:var(--color-text-secondary)">(override)</span></label>
+    <div class="input-wrap"><input type="number" id="cfg-brand-weight" placeholder="15" min="0" max="100" step="1" style="padding-left:10px"><span style="padding:6px 10px 6px 4px;font-size:13px;color:var(--color-text-secondary)">%</span></div>
+    <div class="config-hint">Default 15% — how much credit SEO gets for branded traffic growth.</div>
+  </div>
+  <div class="config-box" style="background:var(--color-background-secondary);border-color:transparent">
+    <label>Blended attribution weight</label>
+    <div style="font-size:22px;font-weight:500;margin-top:4px" id="blended-weight-display">—</div>
+    <div class="config-hint" id="blended-weight-hint">Enter brand and non-brand % to see your blended SEO attribution weight.</div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ── RESULTS ── -->
+<div id="results" style="display:none">
+  <div class="results-header">
+    <div style="font-size:13px;font-weight:500">Campaign ROI</div>
+    <div class="view-controls">
+      <!-- ROI view toggle -->
+      <div class="seg-row" id="view-toggle">
+        <button class="seg-btn active" id="view-incremental" onclick="setView('incremental')">Incremental ROI</button>
+        <div class="seg-sep"></div>
+        <button class="seg-btn" id="view-total" onclick="setView('total')">Total revenue ROI</button>
+      </div>
+      <button class="btn" id="btn-export">Export CSV</button>
+    </div>
+  </div>
+
+  <div id="view-explainer" class="view-explainer"></div>
+  <div id="status-banner" class="status-banner neutral"></div>
+  <div class="cards" id="cards"></div>
+  <div class="legend" id="legend"></div>
+  <div class="chart-wrap"><canvas id="chart"></canvas></div>
+  <div class="table-section">
+    <div class="table-title">Month-by-month breakdown</div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead id="tbl-head"></thead>
+        <tbody id="tbl-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const MO=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+let baselineData=null,baselineRevData=null,baselineConvData=null;
+let actualsData=null,actualsRevData=null,actualsConvData=null;
+let chartObj=null,roiMode='revenue',roiView='incremental',lastAttr=null;
+let lastRows=null,lastHasVal=false,lastValueLabel='Revenue',lastMonthly=0;
+
+/* ── mode toggle (revenue vs leads) ── */
+function setMode(m){
+  roiMode=m;
+  document.getElementById('mode-revenue').className='seg-btn'+(m==='revenue'?' active':'');
+  document.getElementById('mode-leads').className='seg-btn'+(m==='leads'?' active':'');
+  var isLeads=m==='leads';
+  document.getElementById('box-baseline-rev').style.display=isLeads?'none':'block';
+  document.getElementById('box-baseline-conv').style.display=isLeads?'block':'none';
+  document.getElementById('box-actuals-rev').style.display=isLeads?'none':'block';
+  document.getElementById('box-actuals-conv').style.display=isLeads?'block':'none';
+  document.getElementById('lbl-rps').textContent=isLeads?'Value per session (from leads)':'Revenue per session';
+  document.getElementById('hint-rps').textContent=isLeads
+    ?'Calculated from historical conversions × value per conversion ÷ sessions. Or enter manually.'
+    :'Auto-calculated from historical data, or enter manually.';
+  updateRPSField();
+}
+
+/* ── view toggle (incremental vs total) ── */
+function setView(v){
+  roiView=v;
+  document.getElementById('view-incremental').className='seg-btn'+(v==='incremental'?' active':'');
+  document.getElementById('view-total').className='seg-btn'+(v==='total'?' active':'');
+  if(lastRows)renderResults(lastRows,lastHasVal,lastValueLabel,lastMonthly);
+}
+
+/* ── parsing ── */
+function parseLabel(s){
+  s=s.trim().replace(/^["']|["']$/g,'');
+  var m;
+  m=s.match(/^([A-Za-z]+)[\s\-]+(\d{2,4})$/);
+  if(m){var mi=MO.findIndex(function(x){return x.toLowerCase()===m[1].toLowerCase().slice(0,3);});var yr=parseInt(m[2]);if(yr<100)yr+=2000;if(mi!==-1&&yr>2000)return{mi:mi,yr:yr};}
+  m=s.match(/^(\d{4})[-\/](\d{1,2})$/);if(m){var yr=parseInt(m[1]),mi=parseInt(m[2])-1;if(mi>=0&&mi<12)return{mi:mi,yr:yr};}
+  m=s.match(/^(\d{1,2})[-\/](\d{4})$/);if(m){var mi=parseInt(m[1])-1,yr=parseInt(m[2]);if(mi>=0&&mi<12)return{mi:mi,yr:yr};}
+  m=s.match(/^(\d{4})(\d{2})$/);if(m){var yr=parseInt(m[1]),mi=parseInt(m[2])-1;if(mi>=0&&mi<12&&yr>2000)return{mi:mi,yr:yr};}
+  m=s.match(/^([A-Za-z]+)\s+\d{1,2},?\s+(\d{4})$/);
+  if(m){var mi=MO.findIndex(function(x){return x.toLowerCase()===m[1].toLowerCase().slice(0,3);});var yr=parseInt(m[2]);if(mi!==-1&&yr>2000)return{mi:mi,yr:yr};}
+  return null;
+}
+function lkey(mi,yr){return yr*12+mi;}
+function splitLine(line){
+  if(line.indexOf('\t')>=0)return line.split('\t').map(function(s){return s.trim().replace(/^["']|["']$/g,'');});
+  if(line.indexOf(';')>=0)return line.split(';').map(function(s){return s.trim().replace(/^["']|["']$/g,'');});
+  if(line.indexOf(',')>=0)return line.split(',').map(function(s){return s.trim().replace(/^["']|["']$/g,'');});
+  return line.trim().split(/\s{2,}/).map(function(s){return s.trim();});
+}
+function parseText(raw){
+  var rows=[];
+  raw.split('\n').forEach(function(line){
+    var parts=splitLine(line.trim());if(parts.length<2)return;
+    var lbl=parts[0].trim(),val=NaN;
+    for(var i=parts.length-1;i>=1;i--){var v=parseFloat(parts[i].replace(/[$,\s%]/g,''));if(!isNaN(v)){val=v;break;}}
+    var p=parseLabel(lbl);
+    if(p&&!isNaN(val))rows.push({label:lbl,mi:p.mi,yr:p.yr,value:val});
+  });
+  return rows;
+}
+
+/* ── baseline projection ── */
+function calcYoY(rows){
+  if(rows.length<13)return null;
+  var map={};rows.forEach(function(r){map[lkey(r.mi,r.yr)]=r.value;});
+  var last12=rows.slice(-12),rates=[];
+  last12.forEach(function(r){var prev=map[lkey(r.mi,r.yr-1)];if(prev&&prev>0)rates.push({mi:r.mi,rate:(r.value-prev)/prev});});
+  return rates.length>=6?rates:null;
+}
+function buildBaseline(baseRows,targetMonths){
+  var map={};baseRows.forEach(function(r){map[lkey(r.mi,r.yr)]=r.value;});
+  var yoyRates=calcYoY(baseRows),rateLookup={};
+  if(yoyRates)yoyRates.forEach(function(r){rateLookup[r.mi]=r.rate;});
+  var vals=baseRows.map(function(r){return r.value;}),momRates=[];
+  for(var i=1;i<vals.length;i++)if(vals[i-1]>0)momRates.push((vals[i]-vals[i-1])/vals[i-1]);
+  var avgMoM=momRates.length?momRates.reduce(function(a,b){return a+b;},0)/momRates.length:0.01;
+  var avgYoY=yoyRates?yoyRates.reduce(function(a,r){return a+r.rate;},0)/yoyRates.length:null;
+  var out=[];
+  targetMonths.forEach(function(tm){
+    var prevVal=map[lkey(tm.mi,tm.yr-1)];
+    var baseRate=rateLookup[tm.mi]!==undefined?rateLookup[tm.mi]:(avgYoY||avgMoM);
+    var v;
+    if(prevVal!==undefined){v=prevVal*(1+baseRate);}
+    else{var last=out.length?out[out.length-1].value:vals[vals.length-1];v=last*(1+baseRate/12);}
+    map[lkey(tm.mi,tm.yr)]=v;
+    out.push({label:tm.label,mi:tm.mi,yr:tm.yr,value:v});
+  });
+  return out;
+}
+
+/* ── derived VPS ── */
+function calcDerivedVPS(){
+  if(roiMode==='revenue'){
+    if(!baselineData||!baselineRevData||baselineData.length<1||baselineRevData.length<1)return null;
+    var sMap={};baselineData.forEach(function(r){sMap[lkey(r.mi,r.yr)]=r.value;});
+    var totalS=0,totalR=0,matched=0;
+    baselineRevData.forEach(function(r){var s=sMap[lkey(r.mi,r.yr)];if(s&&s>0){totalS+=s;totalR+=r.value;matched++;}});
+    return matched>=1&&totalS>0?{vps:totalR/totalS,months:matched,label:'avg revenue/session'}:null;
+  } else {
+    if(!baselineData||!baselineConvData||baselineData.length<1||baselineConvData.length<1)return null;
+    var convVal=parseFloat(document.getElementById('conv-value').value)||0;
+    if(convVal<=0)return null;
+    var sMap={};baselineData.forEach(function(r){sMap[lkey(r.mi,r.yr)]=r.value;});
+    var totalS=0,totalV=0,matched=0;
+    baselineConvData.forEach(function(r){var s=sMap[lkey(r.mi,r.yr)];if(s&&s>0){totalS+=s;totalV+=r.value*convVal;matched++;}});
+    return matched>=1&&totalS>0?{vps:totalV/totalS,months:matched,label:'avg value/session from leads'}:null;
+  }
+}
+function getEffectiveVPS(){
+  var field=document.getElementById('cfg-rps');
+  if(field.dataset.userEdited)return parseFloat(field.value)||0;
+  var d=calcDerivedVPS();
+  return d?d.vps:(parseFloat(field.value)||0);
+}
+function updateRPSField(){
+  var d=calcDerivedVPS(),field=document.getElementById('cfg-rps'),note=document.getElementById('rps-derived');
+  if(d){
+    if(!field.dataset.userEdited)field.value=d.vps.toFixed(2);
+    note.className='rps-derived active';
+    note.textContent='Calculated from '+d.months+' months — $'+d.vps.toFixed(2)+' '+d.label;
+  } else {
+    note.className='rps-derived';note.textContent='';
+    if(!field.dataset.userEdited)field.value='';
+  }
+}
+
+/* ── formatting ── */
+function fmt(v){if(v===null||isNaN(v))return '';if(Math.abs(v)>=1e6)return(v/1e6).toFixed(2)+'M';if(Math.abs(v)>=1e3)return(v/1e3).toFixed(1)+'K';return Math.round(v).toLocaleString();}
+function fmtUSD(v){
+  if(v===null||isNaN(v))return '';
+  var abs=Math.abs(v),s;
+  if(abs>=1e6)s='$'+(abs/1e6).toFixed(2)+'M';
+  else if(abs>=1e3)s='$'+(abs/1e3).toFixed(1)+'K';
+  else s='$'+Math.round(abs).toLocaleString();
+  return v<0?'-'+s:s;
+}
+function fmtPct(v){return(v>=0?'+':'')+v.toFixed(1)+'%';}
+
+/* ── historical CVR for projecting baseline conversions ── */
+function calcHistoricalCVR(){
+  if(!baselineData||!baselineConvData||baselineData.length<1||baselineConvData.length<1)return null;
+  var sMap={};baselineData.forEach(function(r){sMap[lkey(r.mi,r.yr)]=r.value;});
+  var totalS=0,totalC=0,matched=0;
+  baselineConvData.forEach(function(r){var s=sMap[lkey(r.mi,r.yr)];if(s&&s>0){totalS+=s;totalC+=r.value;matched++;}});
+  return matched>=1&&totalS>0?totalC/totalS:null;
+}
+
+/* ── attribution weight ── */
+function getAttributionWeight(){
+  var brandPct=parseFloat(document.getElementById('cfg-brand-pct').value);
+  var nonBrandPct=parseFloat(document.getElementById('cfg-nonbrand-pct').value);
+  var brandWeight=parseFloat(document.getElementById('cfg-brand-weight').value);
+  if(isNaN(brandWeight)||brandWeight<0)brandWeight=15;
+  if(isNaN(brandPct)&&isNaN(nonBrandPct))return{weight:1,active:false,brandPct:null,nonBrandPct:null,brandWeight:brandWeight};
+  if(!isNaN(brandPct)&&isNaN(nonBrandPct))nonBrandPct=100-brandPct;
+  if(!isNaN(nonBrandPct)&&isNaN(brandPct))brandPct=100-nonBrandPct;
+  brandPct=Math.max(0,Math.min(100,brandPct));
+  nonBrandPct=Math.max(0,Math.min(100,nonBrandPct));
+  var blended=(brandPct*(brandWeight/100)+nonBrandPct*1)/100;
+  return{weight:blended,active:true,brandPct:brandPct,nonBrandPct:nonBrandPct,brandWeight:brandWeight};
+}
+function updateBlendedDisplay(){
+  var a=getAttributionWeight();
+  var disp=document.getElementById('blended-weight-display');
+  var hint=document.getElementById('blended-weight-hint');
+  var lbl=document.getElementById('brand-weight-lbl');
+  var bw=parseFloat(document.getElementById('cfg-brand-weight').value)||15;
+  lbl.textContent=bw+'%';
+  if(!a.active){disp.textContent='—';disp.style.color='var(--color-text-secondary)';hint.textContent='Enter brand and non-brand % to see your blended SEO attribution weight.';return;}
+  var pct=Math.round(a.weight*100);
+  disp.textContent=pct+'%';
+  disp.style.color=pct>=80?'#1D9E75':pct>=50?'#854F0B':'#993C1D';
+  hint.textContent='SEO gets '+pct+'% credit for incremental sessions — '+a.brandPct+'% branded × '+bw+'% + '+a.nonBrandPct+'% non-brand × 100%.';
+}
+
+/* ── main calculation ── */
+function run(){
+  if(!baselineData||baselineData.length<2){alert('Paste at least 2 months of baseline session data first.');return;}
+  if(!actualsData||actualsData.length<1){alert('Paste at least 1 month of actual session data first.');return;}
+
+  var isLeads=roiMode==='leads';
+  var vps=getEffectiveVPS();
+  var monthly=parseFloat(document.getElementById('cfg-monthly').value)||0;
+  var manualMonths=parseInt(document.getElementById('cfg-months').value)||0;
+  var convVal=parseFloat(document.getElementById('conv-value').value)||0;
+  var valueLabel=isLeads?'Lead value':'Revenue';
+  var attr=getAttributionWeight();
+  var attrWeight=attr.weight;
+
+  var baselineProjected=buildBaseline(baselineData,actualsData);
+
+  var actRevMap={};if(actualsRevData)actualsRevData.forEach(function(r){actRevMap[lkey(r.mi,r.yr)]=r.value;});
+  var baseRevMap={};if(baselineRevData)baselineRevData.forEach(function(r){baseRevMap[lkey(r.mi,r.yr)]=r.value;});
+  var actConvMap={};if(actualsConvData)actualsConvData.forEach(function(r){actConvMap[lkey(r.mi,r.yr)]=r.value;});
+  var baseConvMap={};if(baselineConvData)baselineConvData.forEach(function(r){baseConvMap[lkey(r.mi,r.yr)]=r.value;});
+
+  var nMonths=manualMonths||actualsData.length;
+  var useMonths=actualsData.slice(0,nMonths);
+  var baseProjSlice=baselineProjected.slice(0,nMonths);
+
+  var rows=[];
+  for(var i=0;i<useMonths.length;i++){
+    var act=useMonths[i],base=baseProjSlice[i];
+    var baselineSessions=base?base.value:0;
+    var incrSessions=act.value-baselineSessions;
+    var incrSessionsWeighted=incrSessions*attrWeight;
+
+    var incrVal=null,actVal=null,baseVal=null;
+    var actConvs=null,baseConvs=null,incrConvs=null;
+
+    if(!isLeads){
+      var hasActRev=actRevMap[lkey(act.mi,act.yr)]!==undefined;
+      var hasBaseRev=base&&baseRevMap[lkey(base.mi,base.yr)]!==undefined;
+      if(hasActRev){
+        actVal=actRevMap[lkey(act.mi,act.yr)]*attrWeight;
+        if(hasBaseRev){
+          baseVal=baseRevMap[lkey(base.mi,base.yr)]*attrWeight;
+        } else if(vps>0&&base){
+          baseVal=base.value*vps*attrWeight;
+        } else {
+          baseVal=null;
+        }
+        incrVal=baseVal!==null?actVal-baseVal:null;
+      } else if(vps>0){
+        actVal=act.value*vps*attrWeight;
+        baseVal=base?base.value*vps*attrWeight:null;
+        incrVal=incrSessionsWeighted*vps;
+      }
+    } else {
+      var hasActConv=actConvMap[lkey(act.mi,act.yr)]!==undefined;
+      var hasBaseConv=base&&baseConvMap[lkey(base.mi,base.yr)]!==undefined;
+      if(hasActConv){
+        actConvs=actConvMap[lkey(act.mi,act.yr)];
+        if(hasBaseConv){
+          baseConvs=baseConvMap[lkey(base.mi,base.yr)];
+        } else if(base){
+          var histCVR=calcHistoricalCVR();
+          baseConvs=histCVR!==null?base.value*histCVR:null;
+        } else {
+          baseConvs=null;
+        }
+        incrConvs=baseConvs!==null?actConvs-baseConvs:null;
+        if(convVal>0){
+          actVal=actConvs*convVal*attrWeight;
+          baseVal=baseConvs!==null?baseConvs*convVal*attrWeight:null;
+          incrVal=incrConvs!==null?incrConvs*convVal*attrWeight:(incrSessionsWeighted*vps||null);
+        } else if(vps>0){
+          actVal=act.value*vps*attrWeight;
+          baseVal=base?base.value*vps*attrWeight:null;
+          incrVal=incrSessionsWeighted*vps;
+        }
+      } else if(vps>0){
+        actVal=act.value*vps*attrWeight;
+        baseVal=base?base.value*vps*attrWeight:null;
+        incrVal=incrSessionsWeighted*vps;
+      }
+    }
+
+    var pctVsBase=base&&base.value>0?((act.value-base.value)/base.value)*100:null;
+    rows.push({
+      label:act.label,
+      actualSessions:act.value,baselineSessions:baselineSessions,incrSessions:incrSessions,
+      incrSessionsWeighted:incrSessionsWeighted,attrWeight:attrWeight,pctVsBase:pctVsBase,
+      actConvs:actConvs,baseConvs:baseConvs,incrConvs:incrConvs,
+      incrVal:incrVal,actVal:actVal,baseVal:baseVal,
+      monthlyCost:monthly
+    });
+  }
+
+  var cumulCost=0,cumulIncrVal=0,cumulActVal=0,cumulBaseVal=0;
+  rows.forEach(function(r){
+    cumulCost+=r.monthlyCost;
+    if(r.incrVal!==null)cumulIncrVal+=r.incrVal;
+    if(r.actVal!==null)cumulActVal+=r.actVal;
+    if(r.baseVal!==null)cumulBaseVal+=r.baseVal;
+    r.cumulCost=cumulCost;
+    r.cumulIncrVal=r.incrVal!==null?cumulIncrVal:null;
+    r.cumulActVal=r.actVal!==null?cumulActVal:null;
+    r.cumulBaseVal=r.baseVal!==null?cumulBaseVal:null;
+    r.netROI_incr=r.incrVal!==null?cumulIncrVal-cumulCost:null;
+    r.netROI_total=r.actVal!==null?cumulActVal-cumulCost:null;
+  });
+
+  var hasVal=rows.some(function(r){return r.incrVal!==null;});
+
+  lastRows=rows;lastHasVal=hasVal;lastValueLabel=valueLabel;lastMonthly=monthly;lastAttr=attr;
+  renderResults(rows,hasVal,valueLabel,monthly);
+}
+
+
+/* ── clickable legend ── */
+function buildLegend(){
+  if(!chartObj)return;
+  var el=document.getElementById('legend');
+  el.innerHTML='';
+  chartObj.data.datasets.forEach(function(ds,i){
+    var item=document.createElement('span');
+    item.className='leg-item'+(chartObj.getDatasetMeta(i).hidden?' hidden':'');
+    item.innerHTML='<span class="leg-dot" style="background:'+ds.borderColor+';'+(ds.borderDash&&ds.borderDash.length?'opacity:0.85':'')+'"></span>'+ds.label;
+    item.addEventListener('click',function(){
+      var meta=chartObj.getDatasetMeta(i);
+      meta.hidden=!meta.hidden;
+      item.className='leg-item'+(meta.hidden?' hidden':'');
+      chartObj.update();
+    });
+    el.appendChild(item);
+  });
+}
+
+/* ── render (called on run + view toggle) ── */
+function renderResults(rows,hasVal,valueLabel,monthly){
+  var view=roiView;
+  var isIncr=view==='incremental';
+
+  var beMonth=null;
+  rows.forEach(function(r){
+    if(beMonth!==null)return;
+    var net=isIncr?r.netROI_incr:r.netROI_total;
+    if(net!==null&&net>=0)beMonth=r.label;
+  });
+  rows.forEach(function(r){r.isBeRow=r.label===beMonth;});
+
+  var lastRow=rows[rows.length-1];
+  var finalNetROI=isIncr?lastRow.netROI_incr:lastRow.netROI_total;
+  var totalCost=lastRow.cumulCost;
+  var totalVal=isIncr?lastRow.cumulIncrVal:lastRow.cumulActVal;
+  var finalROIPct=totalVal!==null&&totalCost>0?((totalVal-totalCost)/totalCost)*100:null;
+  var totalIncrSessions=rows.reduce(function(a,r){return a+r.incrSessions;},0);
+  var avgPctArr=rows.filter(function(r){return r.pctVsBase!==null;});
+  var avgPctVsBase=avgPctArr.length?avgPctArr.reduce(function(a,r){return a+r.pctVsBase;},0)/avgPctArr.length:0;
+
+  var explainers={
+    incremental:'Incremental ROI measures only the revenue above (or below) baseline trend — what SEO directly drove. Down months where actuals fall below the baseline count against the total.',
+    total:'Total revenue ROI measures all revenue generated during the campaign period vs. SEO cost. The argument: SEO protects and maintains the existing traffic floor, so the full revenue pie is attributable to having an active SEO program.'
+  };
+  var attrBadge='';
+  if(lastAttr&&lastAttr.active){
+    var pct=Math.round(lastAttr.weight*100);
+    attrBadge=' <span style="display:inline-block;margin-left:8px;padding:2px 8px;border-radius:4px;background:#E1F5EE;color:#0F6E56;font-size:11px;font-weight:500">'+pct+'% blended attribution applied</span>';
+  }
+  document.getElementById('view-explainer').innerHTML=explainers[view]+attrBadge;
+
+  var banner=document.getElementById('status-banner');
+  if(!hasVal||!monthly){
+    banner.className='status-banner neutral';
+    banner.textContent='Add cost and value inputs to see ROI and break-even.';
+  } else if(beMonth){
+    banner.className='status-banner positive';
+    banner.innerHTML='✓ Break-even reached in <strong>'+beMonth+'</strong> — campaign is ROI positive';
+  } else {
+    var gap=totalCost-(totalVal||0);
+    banner.className='status-banner negative';
+    banner.innerHTML='Campaign has not yet broken even — <strong>'+fmtUSD(gap)+'</strong> to go';
+  }
+
+  var isLeads=roiMode==='leads';
+  var totalIncrConvs=isLeads?rows.reduce(function(a,r){return a+(r.incrConvs||0);},0):null;
+  var valLabel=isIncr?('Cumul. incr. '+valueLabel.toLowerCase()):('Cumul. total '+valueLabel.toLowerCase());
+  document.getElementById('cards').innerHTML=
+    '<div class="card"><div class="lbl">Months tracked</div><div class="val">'+rows.length+'</div><div class="sub">'+rows[0].label+' → '+lastRow.label+'</div></div>'+
+    '<div class="card"><div class="lbl">Incr. sessions total</div><div class="val">'+fmt(totalIncrSessions)+'</div><div class="sub">vs. baseline trend</div></div>'+
+    '<div class="card"><div class="lbl">Avg sessions vs baseline</div><div class="val" style="color:'+(avgPctVsBase>=0?'#1D9E75':'#993C1D')+'">'+fmtPct(avgPctVsBase)+'</div><div class="sub">per month</div></div>'+
+    (isLeads&&totalIncrConvs!==null?'<div class="card"><div class="lbl">Incr. conversions total</div><div class="val" style="color:#534AB7">'+fmt(totalIncrConvs)+'</div><div class="sub">vs. baseline</div></div>':'')+
+    (hasVal?
+      '<div class="card"><div class="lbl">'+valLabel+'</div><div class="val" style="color:'+(totalVal!==null&&totalVal<0?'#993C1D':'#1D9E75')+'">'+fmtUSD(totalVal)+'</div><div class="sub">'+(totalVal!==null&&totalVal<0?'below baseline':'above baseline')+'</div></div>'+
+      '<div class="card"><div class="lbl">Cumul. cost</div><div class="val">'+fmtUSD(totalCost)+'</div><div class="sub">'+rows.length+' mo × '+fmtUSD(monthly)+'</div></div>'+
+      '<div class="card"><div class="lbl">Net ROI</div><div class="val" style="color:'+(finalNetROI!==null&&finalNetROI>=0?'#1D9E75':'#993C1D')+'">'+fmtUSD(finalNetROI)+'</div><div class="sub">'+(finalROIPct!==null?(finalROIPct>=0?'+':'')+Math.round(finalROIPct)+'% return':'')+'</div></div>'
+    :'');
+
+  var labels=rows.map(function(r){return r.label;});
+  var datasets=[
+    {label:'Actual sessions',data:rows.map(function(r){return r.actualSessions;}),borderColor:'#7F77DD',borderWidth:2.5,pointRadius:3.5,pointBackgroundColor:'#7F77DD',tension:0.3,fill:false,yAxisID:'y'},
+    {label:'Baseline sessions',data:rows.map(function(r){return r.baselineSessions;}),borderColor:'#C0392B',borderWidth:1.5,borderDash:[5,3],pointRadius:2,tension:0.3,fill:false,yAxisID:'y'}
+  ];
+
+  var hasBaseValLine=hasVal&&rows.some(function(r){return r.cumulBaseVal!==null;});
+  var hasActValLine=hasVal&&rows.some(function(r){return r.cumulActVal!==null;});
+
+  if(hasVal){
+    if(isIncr){
+      if(hasActValLine)datasets.push({label:'Cumul. actual '+valueLabel.toLowerCase(),data:rows.map(function(r){return r.cumulActVal;}),borderColor:'#7F77DD',borderWidth:1.5,borderDash:[2,2],pointRadius:1.5,tension:0.3,fill:false,yAxisID:'y2'});
+      if(hasBaseValLine)datasets.push({label:'Cumul. baseline '+valueLabel.toLowerCase(),data:rows.map(function(r){return r.cumulBaseVal;}),borderColor:'#C0392B',borderWidth:1.5,borderDash:[5,3],pointRadius:1.5,tension:0.3,fill:false,yAxisID:'y2'});
+      datasets.push({label:'Cumul. incr. '+valueLabel.toLowerCase(),data:rows.map(function(r){return r.cumulIncrVal;}),borderColor:'#1D9E75',borderWidth:2.5,pointRadius:3,tension:0.3,fill:false,yAxisID:'y2'});
+      datasets.push({label:'Cumul. cost',data:rows.map(function(r){return r.cumulCost;}),borderColor:'#D85A30',borderWidth:2,borderDash:[4,2],pointRadius:2,tension:0.3,fill:false,yAxisID:'y2'});
+    } else {
+      if(hasBaseValLine)datasets.push({label:'Cumul. baseline '+valueLabel.toLowerCase(),data:rows.map(function(r){return r.cumulBaseVal;}),borderColor:'#C0392B',borderWidth:1.5,borderDash:[5,3],pointRadius:1.5,tension:0.3,fill:false,yAxisID:'y2'});
+      datasets.push({label:'Cumul. total '+valueLabel.toLowerCase(),data:rows.map(function(r){return r.cumulActVal;}),borderColor:'#1D9E75',borderWidth:2.5,pointRadius:3,tension:0.3,fill:false,yAxisID:'y2'});
+      datasets.push({label:'Cumul. cost',data:rows.map(function(r){return r.cumulCost;}),borderColor:'#D85A30',borderWidth:2,borderDash:[4,2],pointRadius:2,tension:0.3,fill:false,yAxisID:'y2'});
+    }
+  }
+
+  if(chartObj)chartObj.destroy();
+  chartObj=new Chart(document.getElementById('chart'),{
+    type:'line',
+    data:{labels:labels,datasets:datasets},
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          mode:'index',intersect:false,
+          backgroundColor:'#ffffff',borderColor:'#e0e0e0',borderWidth:1,
+          titleColor:'#111111',bodyColor:'#555555',padding:10,
+          callbacks:{
+            label:function(ctx){
+              if(ctx.parsed.y===null)return null;
+              var isMoney=ctx.dataset.yAxisID==='y2';
+              return ' '+ctx.dataset.label+': '+(isMoney?fmtUSD(ctx.parsed.y):fmt(ctx.parsed.y));
+            }
+          }
+        }
+      },
+      scales:{
+        x:{ticks:{maxTicksLimit:18,font:{size:11},maxRotation:40,color:'#888780'},grid:{display:false},border:{display:false}},
+        y:{position:'left',ticks:{font:{size:11},callback:function(v){return fmt(v);},color:'#888780'},grid:{color:'rgba(128,128,128,0.08)'},border:{display:false},title:{display:true,text:'Sessions',font:{size:10},color:'#888780'}},
+        y2:{position:'right',display:hasVal,ticks:{font:{size:11},callback:function(v){return fmtUSD(v);},color:'#888780'},grid:{display:false},border:{display:false},title:{display:hasVal,text:'Cumulative $',font:{size:10},color:'#888780'}}
+      }
+    }
+  });
+
+  buildLegend();
+
+  var showConvCols=roiMode==='leads'&&rows.some(function(r){return r.actConvs!==null;});
+  var netColLabel=isIncr?'Net ROI (incr.)':'Net ROI (total)';
+  var valColLabel=isIncr?'Incr. '+valueLabel.toLowerCase():('Total '+valueLabel.toLowerCase());
+  var cumulValColLabel=isIncr?'Cumul. incr. val':'Cumul. total val';
+
+  document.getElementById('tbl-head').innerHTML='<tr>'+
+    '<th>Month</th><th>Actual sessions</th><th>Baseline sessions</th><th>Incr. sessions</th><th>vs. baseline</th>'+
+    (showConvCols?'<th>Actual convs</th><th>Baseline convs</th><th>Incr. convs</th>':'')+
+    (hasVal?'<th>'+valColLabel+'</th><th>Monthly cost</th><th>'+cumulValColLabel+'</th><th>Cumul. cost</th><th>'+netColLabel+'</th>':'')+
+    '</tr>';
+
+  document.getElementById('tbl-body').innerHTML=rows.map(function(r){
+    var displayVal=isIncr?r.incrVal:r.actVal;
+    var displayCumul=isIncr?r.cumulIncrVal:r.cumulActVal;
+    var displayNet=isIncr?r.netROI_incr:r.netROI_total;
+    var valColor=displayVal!==null&&displayVal<0?'neg':'pos';
+    return '<tr class="'+(r.isBeRow?'be-row':'')+'">'
+      +'<td>'+r.label+(r.isBeRow?' <span style="color:#0F6E56;font-size:10px">▲ break-even</span>':'')+'</td>'
+      +'<td>'+fmt(r.actualSessions)+'</td>'
+      +'<td class="dim">'+fmt(r.baselineSessions)+'</td>'
+      +'<td class="'+(r.incrSessions>=0?'pos':'neg')+'">'+(r.incrSessions>0?'+':'')+fmt(r.incrSessions)+'</td>'
+      +'<td class="'+(r.pctVsBase!==null&&r.pctVsBase>=0?'pos':'neg')+'">'+(r.pctVsBase!==null?fmtPct(r.pctVsBase):'—')+'</td>'
+      +(showConvCols?
+        '<td>'+(r.actConvs!==null?fmt(r.actConvs):'—')+'</td>'
+        +'<td class="dim">'+(r.baseConvs!==null?fmt(r.baseConvs):'—')+'</td>'
+        +'<td class="'+(r.incrConvs!==null&&r.incrConvs>=0?'pos':'neg')+'">'+(r.incrConvs!==null?(r.incrConvs>0?'+':'')+fmt(r.incrConvs):'—')+'</td>'
+      :'')
+      +(hasVal?
+        '<td class="'+valColor+'">'+(displayVal!==null?fmtUSD(displayVal):'—')+'</td>'
+        +'<td class="dim">'+fmtUSD(r.monthlyCost)+'</td>'
+        +'<td class="'+(displayCumul!==null&&displayCumul>=0?'pos':'neg')+'">'+(displayCumul!==null?fmtUSD(displayCumul):'—')+'</td>'
+        +'<td class="dim">'+fmtUSD(r.cumulCost)+'</td>'
+        +'<td class="'+(displayNet!==null&&displayNet>=0?'pos':'neg')+'">'+(displayNet!==null?fmtUSD(displayNet):'—')+'</td>'
+      :'')
+      +'</tr>';
+  }).join('');
+
+  document.getElementById('results').style.display='block';
+}
+
+/* ── export ── */
+function exportCSV(){
+  if(!lastRows||!lastRows.length){alert('Run the calculation first.');return;}
+  var isIncr=roiView==='incremental';
+  var valueLabel=lastValueLabel;
+  var headers=['Month','Actual sessions','Baseline sessions','Incr. sessions','% vs baseline',
+    'Incr. '+valueLabel+' ($)','Total '+valueLabel+' ($)','Baseline '+valueLabel+' ($)',
+    'Monthly cost ($)','Cumul. incr. val ($)','Cumul. total val ($)','Cumul. cost ($)',
+    'Net ROI incr. ($)','Net ROI total ($)'];
+  var csvRows=[headers.join(',')];
+  lastRows.forEach(function(r){
+    csvRows.push([
+      r.label,Math.round(r.actualSessions),Math.round(r.baselineSessions),Math.round(r.incrSessions),
+      r.pctVsBase!==null?r.pctVsBase.toFixed(1)+'%':'',
+      r.incrVal!==null?Math.round(r.incrVal):'',
+      r.actVal!==null?Math.round(r.actVal):'',
+      r.baseVal!==null?Math.round(r.baseVal):'',
+      r.monthlyCost,
+      r.cumulIncrVal!==null?Math.round(r.cumulIncrVal):'',
+      r.cumulActVal!==null?Math.round(r.cumulActVal):'',
+      Math.round(r.cumulCost),
+      r.netROI_incr!==null?Math.round(r.netROI_incr):'',
+      r.netROI_total!==null?Math.round(r.netROI_total):''
+    ].join(','));
+  });
+  var blob=new Blob([csvRows.join('\n')],{type:'text/csv'}),url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download='seo-roi-tracker.csv';document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+}
+
+/* ── input handlers ── */
+function handleBaseline(){
+  var raw=document.getElementById('ta-baseline').value.trim(),st=document.getElementById('st-baseline');
+  if(!raw){baselineData=null;st.textContent='';updateRPSField();return;}
+  var rows=parseText(raw);
+  if(rows.length<2){baselineData=null;st.innerHTML='<span class="err">Need at least 2 rows.</span>';return;}
+  baselineData=rows;
+  var hasYoY=rows.length>=13;
+  var sample=rows.slice(-2).map(function(r){return r.label+': '+Math.round(r.value).toLocaleString();}).join(', ');
+  st.innerHTML='<span class="ok">✓ '+rows.length+' months — '+sample+'</span>'+(hasYoY?'':' <span class="warn">— 13+ months recommended for YoY baseline</span>');
+  updateRPSField();
+}
+function handleBaselineRev(){
+  var raw=document.getElementById('ta-baseline-rev').value.trim(),st=document.getElementById('st-baseline-rev');
+  if(!raw){baselineRevData=null;st.textContent='';updateRPSField();return;}
+  var rows=parseText(raw);if(rows.length<1){baselineRevData=null;st.innerHTML='<span class="err">Need at least 1 row.</span>';return;}
+  baselineRevData=rows;
+  var sample=rows.slice(0,2).map(function(r){return r.label+': $'+Math.round(r.value).toLocaleString();}).join(', ');
+  st.innerHTML='<span class="ok">✓ '+rows.length+' months — '+sample+'</span>';updateRPSField();
+}
+function handleBaselineConv(){
+  var raw=document.getElementById('ta-baseline-conv').value.trim(),st=document.getElementById('st-baseline-conv');
+  if(!raw){baselineConvData=null;st.textContent='';updateRPSField();return;}
+  var rows=parseText(raw);if(rows.length<1){baselineConvData=null;st.innerHTML='<span class="err">Need at least 1 row.</span>';return;}
+  baselineConvData=rows;
+  var sample=rows.slice(0,2).map(function(r){return r.label+': '+Math.round(r.value).toLocaleString();}).join(', ');
+  st.innerHTML='<span class="ok">✓ '+rows.length+' months — '+sample+'</span>';updateRPSField();
+}
+function handleActuals(){
+  var raw=document.getElementById('ta-actuals').value.trim(),st=document.getElementById('st-actuals');
+  if(!raw){actualsData=null;st.textContent='';return;}
+  var rows=parseText(raw);if(rows.length<1){actualsData=null;st.innerHTML='<span class="err">Need at least 1 row.</span>';return;}
+  actualsData=rows;
+  var mField=document.getElementById('cfg-months');
+  if(!mField.dataset.userEdited)mField.value=rows.length;
+  var sample=rows.slice(-2).map(function(r){return r.label+': '+Math.round(r.value).toLocaleString();}).join(', ');
+  st.innerHTML='<span class="ok">✓ '+rows.length+' months — '+sample+'</span>';
+}
+function handleActualsRev(){
+  var raw=document.getElementById('ta-actuals-rev').value.trim(),st=document.getElementById('st-actuals-rev');
+  if(!raw){actualsRevData=null;st.textContent='';return;}
+  var rows=parseText(raw);if(rows.length<1){actualsRevData=null;st.innerHTML='<span class="err">Need at least 1 row.</span>';return;}
+  actualsRevData=rows;
+  var sample=rows.slice(0,2).map(function(r){return r.label+': $'+Math.round(r.value).toLocaleString();}).join(', ');
+  st.innerHTML='<span class="ok">✓ '+rows.length+' months — '+sample+'</span>';
+}
+function handleActualsConv(){
+  var raw=document.getElementById('ta-actuals-conv').value.trim(),st=document.getElementById('st-actuals-conv');
+  if(!raw){actualsConvData=null;st.textContent='';return;}
+  var rows=parseText(raw);if(rows.length<1){actualsConvData=null;st.innerHTML='<span class="err">Need at least 1 row.</span>';return;}
+  actualsConvData=rows;
+  var sample=rows.slice(0,2).map(function(r){return r.label+': '+Math.round(r.value).toLocaleString();}).join(', ');
+  st.innerHTML='<span class="ok">✓ '+rows.length+' months — '+sample+'</span>';updateRPSField();
+}
+
+/* ── live re-run ── */
+function maybeRerun(){
+  if(!baselineData||baselineData.length<2)return;
+  if(!actualsData||actualsData.length<1)return;
+  if(document.getElementById('results').style.display==='none')return;
+  run();
+}
+function handleEnterKey(e){
+  if(e.key==='Enter'){
+    e.preventDefault();
+    if(baselineData&&baselineData.length>=2&&actualsData&&actualsData.length>=1)run();
+  }
+}
+
+['cfg-brand-pct','cfg-nonbrand-pct','cfg-brand-weight'].forEach(function(id){
+  document.getElementById(id).addEventListener('input',function(){updateBlendedDisplay();maybeRerun();});
+});
+document.getElementById('ta-baseline').addEventListener('input',function(){handleBaseline();maybeRerun();});
+document.getElementById('ta-baseline-rev').addEventListener('input',function(){handleBaselineRev();maybeRerun();});
+document.getElementById('ta-baseline-conv').addEventListener('input',function(){handleBaselineConv();maybeRerun();});
+document.getElementById('ta-actuals').addEventListener('input',function(){handleActuals();maybeRerun();});
+document.getElementById('ta-actuals-rev').addEventListener('input',function(){handleActualsRev();maybeRerun();});
+document.getElementById('ta-actuals-conv').addEventListener('input',function(){handleActualsConv();maybeRerun();});
+document.getElementById('conv-value').addEventListener('input',function(){updateRPSField();maybeRerun();});
+document.getElementById('btn-run').addEventListener('click',run);
+document.getElementById('btn-export').addEventListener('click',exportCSV);
+document.getElementById('cfg-rps').addEventListener('input',function(){this.dataset.userEdited=this.value?'1':'';maybeRerun();});
+document.getElementById('cfg-months').addEventListener('input',function(){this.dataset.userEdited=this.value?'1':'';maybeRerun();});
+document.getElementById('cfg-monthly').addEventListener('input',maybeRerun);
+['cfg-rps','cfg-monthly','cfg-months','cfg-brand-pct','cfg-nonbrand-pct','cfg-brand-weight','conv-value'].forEach(function(id){
+  document.getElementById(id).addEventListener('keydown',handleEnterKey);
+});
+</script>
+</body>
+</html>
