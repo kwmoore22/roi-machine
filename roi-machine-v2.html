@@ -285,6 +285,9 @@ tr:hover td{background:#1e2535}
 .tracker-panel .btn:hover{background:var(--color-background-secondary)}
 .tracker-panel .btn.primary{background:#2175c8;color:#fff;border-color:transparent;padding:9px 22px}
 .tracker-panel .btn.primary:hover{background:#1a5fa8}
+.csv-upload-row{display:flex;align-items:center;gap:6px;margin-top:6px}
+.csv-upload-btn{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:4px;border:.5px solid #252d40;background:transparent;color:#64748b;font-size:11px;cursor:pointer;transition:background .12s,color .12s;font-family:inherit;white-space:nowrap;line-height:1.5}
+.csv-upload-btn:hover{background:#161b26;color:#e2e8f0}
 </style>
 </head>
 <body>
@@ -1021,6 +1024,34 @@ function Summary({cfg,gsc,paid,crm,email}){
   );
 }
 
+// ── GA4 CSV parser ────────────────────────────────────────────────────────────
+function parseGA4Csv(text,hint){
+  var lines=text.split('\n').map(function(l){return l.trim();}).filter(function(l){return l.length>0&&!l.startsWith('#');});
+  if(lines.length<2)return null;
+  function sc(line){var out=[],cur='',q=false;for(var i=0;i<line.length;i++){var c=line[i];if(c==='"'){q=!q;}else if(c===','&&!q){out.push(cur.trim());cur='';}else{cur+=c;}}out.push(cur.trim());return out;}
+  var hdr=sc(lines[0]);
+  var dIdx=hdr.findIndex(function(h){return/month|date|period|week/i.test(h);});
+  if(dIdx===-1)dIdx=0;
+  var pats={sessions:/sessions|users|visits/i,revenue:/revenue|income|sales/i,conversions:/conv|event|goal/i};
+  var pat=(hint&&pats[hint])||null;
+  var valIdx=pat?hdr.findIndex(function(h,ci){return ci!==dIdx&&pat.test(h);}): -1;
+  if(valIdx===-1){
+    hdr.forEach(function(h,ci){if(valIdx===-1&&ci!==dIdx&&lines.slice(1,4).some(function(l){var r=sc(l);return r[ci]&&!isNaN(parseFloat(r[ci].replace(/[$,]/g,'')));}))valIdx=ci;});
+  }
+  if(valIdx===-1)return null;
+  var MO=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],out=[];
+  lines.slice(1).forEach(function(line){
+    var r=sc(line);
+    if(r.length<=Math.max(dIdx,valIdx))return;
+    var d=r[dIdx],v=parseFloat(r[valIdx].replace(/[$,]/g,''));
+    if(isNaN(v))return;
+    var lbl=d,m=d.match(/^(\d{4})-(\d{2})$/);
+    if(m){var yr=parseInt(m[1]),mi=parseInt(m[2])-1;if(mi>=0&&mi<12)lbl=MO[mi]+'-'+String(yr).slice(2);}
+    out.push(lbl+'\t'+v);
+  });
+  return out.length>=2?out.join('\n'):null;
+}
+
 // ── Traffic Projection Tool ───────────────────────────────────────────────────
 function initTrafficTool(container){
   container.innerHTML=`
@@ -1039,12 +1070,14 @@ function initTrafficTool(container){
     <div class="box-subtitle">Export from GA4 → Reports → Acquisition. Paste the month + sessions columns.</div>
     <textarea id="tf-ta-sessions" placeholder="Jan-24\t34000\nFeb-24\t37600\nMar-24\t39500\n..."></textarea>
     <div class="status" id="tf-st-sessions"></div>
+    <div class="csv-upload-row"><label class="csv-upload-btn" for="tf-file-sessions">↑ Upload GA4 CSV</label><input type="file" id="tf-file-sessions" accept=".csv" style="display:none"></div>
   </div>
   <div class="input-box">
     <div class="box-title"><span class="box-title-dot" style="background:#BA7517"></span>Revenue <span style="font-weight:400;color:var(--color-text-secondary);font-size:11px;margin-left:2px">optional</span></div>
     <div class="box-subtitle">Paste monthly revenue to auto-calculate avg revenue per session.</div>
     <textarea id="tf-ta-revenue" placeholder="Jan-24\t85000\nFeb-24\t91200\nMar-24\t98400\n..."></textarea>
     <div class="status" id="tf-st-revenue"></div>
+    <div class="csv-upload-row"><label class="csv-upload-btn" for="tf-file-revenue">↑ Upload GA4 CSV</label><input type="file" id="tf-file-revenue" accept=".csv" style="display:none"></div>
   </div>
   <div class="input-box">
     <div class="box-title"><span class="box-title-dot" style="background:#534AB7"></span>Conversions <span style="font-weight:400;color:var(--color-text-secondary);font-size:11px;margin-left:2px">optional</span></div>
@@ -1055,6 +1088,7 @@ function initTrafficTool(container){
       <div class="conv-input-wrap"><span class="conv-prefix">$</span><input type="number" id="tf-conv-value" placeholder="0" min="0" step="1"></div>
     </div>
     <div class="status" id="tf-st-conv"></div>
+    <div class="csv-upload-row"><label class="csv-upload-btn" for="tf-file-conv">↑ Upload GA4 CSV</label><input type="file" id="tf-file-conv" accept=".csv" style="display:none"></div>
   </div>
 </div>
 <div class="hint">Paste tab or comma-separated data. Month labels like Jan-24, 2024-01, or 01/2024 all work. 13+ months recommended for YoY mode.</div>
@@ -1311,6 +1345,21 @@ function initTrafficTool(container){
   ['moderate','aggressive'].forEach(id=>{$('tf-ov-'+id).addEventListener('change',()=>{if(sessionData)run();});});
   $('tf-roi-monthly').addEventListener('input',()=>{if(sessionData)run();});
   $('tf-roi-rps').addEventListener('input',function(){this.dataset.userEdited=this.value?'1':'';if(sessionData)run();});
+  function loadCsvTf(fileId,taId,stId,hint){
+    $(fileId).addEventListener('change',function(e){
+      var f=e.target.files&&e.target.files[0];if(!f)return;
+      var rdr=new FileReader();
+      rdr.onload=function(ev){
+        var out=parseGA4Csv(ev.target.result,hint);
+        if(!out){$(stId).innerHTML='<span class="err">Could not detect columns — try pasting instead.</span>';e.target.value='';return;}
+        $(taId).value=out;$(taId).dispatchEvent(new Event('input'));e.target.value='';
+      };
+      rdr.readAsText(f);
+    });
+  }
+  loadCsvTf('tf-file-sessions','tf-ta-sessions','tf-st-sessions','sessions');
+  loadCsvTf('tf-file-revenue','tf-ta-revenue','tf-st-revenue','revenue');
+  loadCsvTf('tf-file-conv','tf-ta-conv','tf-st-conv','conversions');
 }
 
 // ── SEO ROI Tracker ───────────────────────────────────────────────────────────
@@ -1332,18 +1381,21 @@ function initTrackerTool(container){
     <div class="box-subtitle">Paste sessions from before the campaign started. Used to build a monthly baseline.</div>
     <textarea id="tr-ta-baseline" placeholder="Jan-23\t28000\nFeb-23\t29500\n...\nDec-24\t36000\n(13+ months recommended)"></textarea>
     <div class="status" id="tr-st-baseline"></div>
+    <div class="csv-upload-row"><label class="csv-upload-btn" for="tr-file-baseline">↑ Upload GA4 CSV</label><input type="file" id="tr-file-baseline" accept=".csv" style="display:none"></div>
   </div>
   <div class="input-box" id="tr-box-baseline-rev">
     <div class="box-title"><span class="box-title-dot" style="background:#BA7517"></span>Historical revenue <span style="font-weight:400;color:var(--color-text-secondary);font-size:11px;margin-left:2px">optional</span></div>
     <div class="box-subtitle">Paste pre-campaign revenue to auto-calculate revenue per session.</div>
     <textarea id="tr-ta-baseline-rev" placeholder="Jan-23\t71000\nFeb-23\t74000\n..."></textarea>
     <div class="status" id="tr-st-baseline-rev"></div>
+    <div class="csv-upload-row"><label class="csv-upload-btn" for="tr-file-baseline-rev">↑ Upload GA4 CSV</label><input type="file" id="tr-file-baseline-rev" accept=".csv" style="display:none"></div>
   </div>
   <div class="input-box" id="tr-box-baseline-conv" style="display:none">
     <div class="box-title"><span class="box-title-dot" style="background:#534AB7"></span>Historical conversions <span style="font-weight:400;color:var(--color-text-secondary);font-size:11px;margin-left:2px">optional</span></div>
     <div class="box-subtitle">Paste pre-campaign monthly conversion counts.</div>
     <textarea id="tr-ta-baseline-conv" placeholder="Jan-23\t310\nFeb-23\t328\n..."></textarea>
     <div class="status" id="tr-st-baseline-conv"></div>
+    <div class="csv-upload-row"><label class="csv-upload-btn" for="tr-file-baseline-conv">↑ Upload GA4 CSV</label><input type="file" id="tr-file-baseline-conv" accept=".csv" style="display:none"></div>
   </div>
 </div>
 <div class="hint" style="margin-bottom:0">The last month of baseline data is the campaign start point. Actuals should begin the month after.</div>
@@ -1355,12 +1407,14 @@ function initTrackerTool(container){
     <div class="box-subtitle">Paste sessions month by month as they come in.</div>
     <textarea id="tr-ta-actuals" placeholder="Jan-25\t38500\nFeb-25\t41200\nMar-25\t44800\n..."></textarea>
     <div class="status" id="tr-st-actuals"></div>
+    <div class="csv-upload-row"><label class="csv-upload-btn" for="tr-file-actuals">↑ Upload GA4 CSV</label><input type="file" id="tr-file-actuals" accept=".csv" style="display:none"></div>
   </div>
   <div class="input-box" id="tr-box-actuals-rev">
     <div class="box-title"><span class="box-title-dot" style="background:#1D9E75"></span>Actual revenue <span style="font-weight:400;color:var(--color-text-secondary);font-size:11px;margin-left:2px">optional</span></div>
     <div class="box-subtitle">Paste actual revenue figures for a direct comparison.</div>
     <textarea id="tr-ta-actuals-rev" placeholder="Jan-25\t98000\nFeb-25\t107000\n..."></textarea>
     <div class="status" id="tr-st-actuals-rev"></div>
+    <div class="csv-upload-row"><label class="csv-upload-btn" for="tr-file-actuals-rev">↑ Upload GA4 CSV</label><input type="file" id="tr-file-actuals-rev" accept=".csv" style="display:none"></div>
   </div>
   <div class="input-box" id="tr-box-actuals-conv" style="display:none">
     <div class="box-title"><span class="box-title-dot" style="background:#534AB7"></span>Actual conversions <span style="font-weight:400;color:var(--color-text-secondary);font-size:11px;margin-left:2px">optional</span></div>
@@ -1371,6 +1425,7 @@ function initTrackerTool(container){
       <div class="conv-input-wrap"><span class="conv-prefix">$</span><input type="number" id="tr-conv-value" placeholder="0" min="0" step="1"></div>
     </div>
     <div class="status" id="tr-st-actuals-conv"></div>
+    <div class="csv-upload-row"><label class="csv-upload-btn" for="tr-file-actuals-conv">↑ Upload GA4 CSV</label><input type="file" id="tr-file-actuals-conv" accept=".csv" style="display:none"></div>
   </div>
 </div>
 <div class="divider"></div>
@@ -1670,6 +1725,24 @@ function initTrackerTool(container){
   $('tr-cfg-months').addEventListener('input',function(){this.dataset.userEdited=this.value?'1':'';maybeRerun();});
   $('tr-cfg-monthly').addEventListener('input',maybeRerun);
   ['tr-cfg-brand-pct','tr-cfg-nonbrand-pct','tr-cfg-brand-weight'].forEach(function(id){container.querySelector('#'+id).addEventListener('input',function(){updateBlended();maybeRerun();});});
+  function loadCsvTr(fileId,taId,stId,hint,handler){
+    $(fileId).addEventListener('change',function(e){
+      var f=e.target.files&&e.target.files[0];if(!f)return;
+      var rdr=new FileReader();
+      rdr.onload=function(ev){
+        var out=parseGA4Csv(ev.target.result,hint);
+        if(!out){$(stId).innerHTML='<span class="err">Could not detect columns — try pasting instead.</span>';e.target.value='';return;}
+        $(taId).value=out;$(taId).dispatchEvent(new Event('input'));e.target.value='';
+      };
+      rdr.readAsText(f);
+    });
+  }
+  loadCsvTr('tr-file-baseline','tr-ta-baseline','tr-st-baseline','sessions');
+  loadCsvTr('tr-file-baseline-rev','tr-ta-baseline-rev','tr-st-baseline-rev','revenue');
+  loadCsvTr('tr-file-baseline-conv','tr-ta-baseline-conv','tr-st-baseline-conv','conversions');
+  loadCsvTr('tr-file-actuals','tr-ta-actuals','tr-st-actuals','sessions');
+  loadCsvTr('tr-file-actuals-rev','tr-ta-actuals-rev','tr-st-actuals-rev','revenue');
+  loadCsvTr('tr-file-actuals-conv','tr-ta-actuals-conv','tr-st-actuals-conv','conversions');
 }
 
 // ── Tool wrapper components ───────────────────────────────────────────────────
