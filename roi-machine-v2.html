@@ -1051,23 +1051,44 @@ function parseGA4Csv(text,hint){
   var hdr=sc(lines[0]);
   var dIdx=hdr.findIndex(function(h){return/month|date|period|week/i.test(h);});
   if(dIdx===-1)dIdx=0;
-  var pats={sessions:/sessions|users|visits/i,revenue:/revenue|income|sales/i,conversions:/conv|event|goal/i};
+  // "clicks" added so GSC exports are matched for the sessions slot
+  var pats={sessions:/sessions|users|visits|clicks/i,revenue:/revenue|income|sales/i,conversions:/conv|event|goal/i};
   var pat=(hint&&pats[hint])||null;
   var valIdx=pat?hdr.findIndex(function(h,ci){return ci!==dIdx&&pat.test(h);}): -1;
   if(valIdx===-1){
     hdr.forEach(function(h,ci){if(valIdx===-1&&ci!==dIdx&&lines.slice(1,4).some(function(l){var r=sc(l);return r[ci]&&!isNaN(parseFloat(r[ci].replace(/[$,]/g,'')));}))valIdx=ci;});
   }
   if(valIdx===-1)return null;
-  var MO=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],out=[];
+  var MO=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],parsed=[];
   lines.slice(1).forEach(function(line){
     var r=sc(line);
     if(r.length<=Math.max(dIdx,valIdx))return;
-    var d=r[dIdx],v=parseFloat(r[valIdx].replace(/[$,]/g,''));
+    var d=r[dIdx].trim(),v=parseFloat(r[valIdx].replace(/[$,]/g,''));
     if(isNaN(v))return;
-    var lbl=d,m=d.match(/^(\d{4})-(\d{2})$/);
-    if(m){var yr=parseInt(m[1]),mi=parseInt(m[2])-1;if(mi>=0&&mi<12)lbl=MO[mi]+'-'+String(yr).slice(2);}
-    out.push(lbl+'\t'+v);
+    parsed.push({d:d,v:v});
   });
+  if(!parsed.length)return null;
+  // GSC exports daily dates (YYYY-MM-DD) — aggregate to monthly totals
+  var isDaily=parsed.some(function(p){return/^\d{4}-\d{2}-\d{2}$/.test(p.d);});
+  var out=[];
+  if(isDaily){
+    var monthly={},order=[];
+    parsed.forEach(function(p){
+      var mk=p.d.slice(0,7);
+      if(!monthly[mk]){monthly[mk]=0;order.push(mk);}
+      monthly[mk]+=p.v;
+    });
+    order.forEach(function(mk){
+      var yr=parseInt(mk.slice(0,4)),mi=parseInt(mk.slice(5,7))-1;
+      out.push(MO[mi]+'-'+String(yr).slice(2)+'\t'+Math.round(monthly[mk]));
+    });
+  }else{
+    parsed.forEach(function(p){
+      var lbl=p.d,m=p.d.match(/^(\d{4})-(\d{2})$/);
+      if(m){var yr=parseInt(m[1]),mi=parseInt(m[2])-1;if(mi>=0&&mi<12)lbl=MO[mi]+'-'+String(yr).slice(2);}
+      out.push(lbl+'\t'+p.v);
+    });
+  }
   return out.length>=2?out.join('\n'):null;
 }
 
@@ -1086,10 +1107,10 @@ function initTrafficTool(container){
 <div class="input-grid">
   <div class="input-box">
     <div class="box-title"><span class="box-title-dot" style="background:#7F77DD"></span>Total sessions</div>
-    <div class="box-subtitle">Export from GA4 → Reports → Acquisition. Paste the month + sessions columns.</div>
+    <div class="box-subtitle">Best source: GSC → Performance → Export (by Date). GA4 Acquisition also works. Paste or upload month + clicks/sessions.</div>
     <textarea id="tf-ta-sessions" placeholder="Jan-24\t34000\nFeb-24\t37600\nMar-24\t39500\n..."></textarea>
     <div class="status" id="tf-st-sessions"></div>
-    <div class="csv-upload-row"><label class="csv-upload-btn" for="tf-file-sessions">↑ Upload GA4 CSV</label><input type="file" id="tf-file-sessions" accept=".csv" style="display:none"></div>
+    <div class="csv-upload-row"><label class="csv-upload-btn" for="tf-file-sessions">↑ Upload GSC or GA4 CSV</label><input type="file" id="tf-file-sessions" accept=".csv" style="display:none"></div>
   </div>
   <div class="input-box">
     <div class="box-title"><span class="box-title-dot" style="background:#BA7517"></span>Revenue <span style="font-weight:400;color:var(--color-text-secondary);font-size:11px;margin-left:2px">optional</span></div>
@@ -1402,10 +1423,10 @@ function initTrackerTool(container){
 <div class="input-grid-2" style="margin-bottom:.5rem">
   <div class="input-box">
     <div class="box-title"><span class="box-title-dot" style="background:#888780"></span>Historical sessions</div>
-    <div class="box-subtitle">Paste sessions from before the campaign started. Used to build a monthly baseline.</div>
+    <div class="box-subtitle">Best source: GSC → Performance → Export (by Date) for the pre-campaign period. GA4 Acquisition also works.</div>
     <textarea id="tr-ta-baseline" placeholder="Jan-23\t28000\nFeb-23\t29500\n...\nDec-24\t36000\n(13+ months recommended)"></textarea>
     <div class="status" id="tr-st-baseline"></div>
-    <div class="csv-upload-row"><label class="csv-upload-btn" for="tr-file-baseline">↑ Upload GA4 CSV</label><input type="file" id="tr-file-baseline" accept=".csv" style="display:none"></div>
+    <div class="csv-upload-row"><label class="csv-upload-btn" for="tr-file-baseline">↑ Upload GSC or GA4 CSV</label><input type="file" id="tr-file-baseline" accept=".csv" style="display:none"></div>
   </div>
   <div class="input-box" id="tr-box-baseline-rev">
     <div class="box-title"><span class="box-title-dot" style="background:#BA7517"></span>Historical revenue <span style="font-weight:400;color:var(--color-text-secondary);font-size:11px;margin-left:2px">optional</span></div>
@@ -1428,10 +1449,10 @@ function initTrackerTool(container){
 <div class="input-grid-2" style="margin-bottom:.5rem">
   <div class="input-box">
     <div class="box-title"><span class="box-title-dot" style="background:#7F77DD"></span>Actual sessions</div>
-    <div class="box-subtitle">Paste sessions month by month as they come in.</div>
+    <div class="box-subtitle">Best source: GSC → Performance → Export (by Date) for the campaign period. GA4 Acquisition also works.</div>
     <textarea id="tr-ta-actuals" placeholder="Jan-25\t38500\nFeb-25\t41200\nMar-25\t44800\n..."></textarea>
     <div class="status" id="tr-st-actuals"></div>
-    <div class="csv-upload-row"><label class="csv-upload-btn" for="tr-file-actuals">↑ Upload GA4 CSV</label><input type="file" id="tr-file-actuals" accept=".csv" style="display:none"></div>
+    <div class="csv-upload-row"><label class="csv-upload-btn" for="tr-file-actuals">↑ Upload GSC or GA4 CSV</label><input type="file" id="tr-file-actuals" accept=".csv" style="display:none"></div>
   </div>
   <div class="input-box" id="tr-box-actuals-rev">
     <div class="box-title"><span class="box-title-dot" style="background:#1D9E75"></span>Actual revenue <span style="font-weight:400;color:var(--color-text-secondary);font-size:11px;margin-left:2px">optional</span></div>
