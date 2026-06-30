@@ -899,8 +899,18 @@ function EmailView({cfg,emailData,setEmailData}){
   );
 }
 
+// ── Cross-tab data bridge ─────────────────────────────────────────────────────
+const roiBridge={
+  seoCost:null,projections:null,
+  _cfgCbs:[],_projCbs:[],
+  pushCfg(d){Object.assign(this,d);this._cfgCbs.forEach(f=>f(d));},
+  pushProjections(d){this.projections=d;this._projCbs.forEach(f=>f(d));},
+  onCfg(f){this._cfgCbs.push(f);return()=>{this._cfgCbs=this._cfgCbs.filter(x=>x!==f);};},
+  onProjections(f){this._projCbs.push(f);return()=>{this._projCbs=this._projCbs.filter(x=>x!==f);};}
+};
+
 // ── ROI Summary ───────────────────────────────────────────────────────────────
-function Summary({cfg,gsc,paid,crm,email}){
+function Summary({cfg,gsc,paid,crm,email,projections}){
   const isEst=cfg.revenueModel!=='ecommerce';
   const rpc=cfg.revenueModel==='leadgen'?cfg.dealValue*(cfg.closeRate/100):cfg.aov;
   const COLORS=['#3b82f6','#8b5cf6','#22c55e'];
@@ -1013,6 +1023,15 @@ function Summary({cfg,gsc,paid,crm,email}){
             h('div',{className:'roi-num'},fmtX(blended)),
             h('div',{className:'roi-sub'},'per $1 invested')
           )
+        )
+      ),
+
+      projections&&h(Card,{title:'Traffic Forecast — Moderate Scenario (next '+projections.months+' mo)'},
+        h('div',{className:'kpi-grid4'},
+          h(KPI,{label:'Projected incr. sessions',value:fmtN(projections.moderateSessions),sub:'above conservative baseline'}),
+          projections.rps>0&&h(KPI,{label:'Projected incr. revenue',value:fmt$(projections.moderateRevenue),sub:'moderate scenario'}),
+          projections.rps>0&&projections.seoCost>0&&h(KPI,{label:'Projected ROI',value:fmtX(projections.moderateRevenue/(projections.seoCost||1)),hl:true,sub:'incr. revenue ÷ SEO cost'}),
+          h(KPI,{label:'Projection horizon',value:projections.endLabel,sub:'moderate scenario end month'})
         )
       ),
 
@@ -1164,6 +1183,8 @@ function initTrafficTool(container){
   const SC=[{id:'conservative',label:'Conservative',color:'#888780',dash:[],defaultPct:0},{id:'moderate',label:'Moderate',color:'#1D9E75',dash:[6,3],defaultPct:25},{id:'aggressive',label:'Aggressive',color:'#D85A30',dash:[3,3],defaultPct:50}];
   const HC='#7F77DD';
   let sessionData=null,revenueData=null,convData=null,chartObj=null,roiMode='revenue';
+  if(roiBridge.seoCost&&!$('tf-roi-monthly').dataset.userEdited)$('tf-roi-monthly').value=roiBridge.seoCost;
+  roiBridge.onCfg(function(d){var f=$('tf-roi-monthly');if(f&&!f.dataset.userEdited){f.value=d.seoCost||'';if(sessionData)run();}});
 
   function setMode(m){
     roiMode=m;
@@ -1322,6 +1343,9 @@ function initTrafficTool(container){
       `<div class="card"><div class="lbl">Incr. vs conservative</div><div class="val" style="color:#1D9E75">+${fmt(mIncr)}</div><div class="sub">Moderate · ${nP}mo total</div></div>`+
       `<div class="card"><div class="lbl">Incr. vs conservative</div><div class="val" style="color:#D85A30">+${fmt(aIncr)}</div><div class="sub">Aggressive · ${nP}mo total</div></div>`;
     renderROI(future,cv,mv,av);
+    const n12=Math.min(nP,12),rps12=getEffRPS(),mc=parseFloat($('tf-roi-monthly').value)||0;
+    const mIncrSess=mv.slice(0,n12).reduce((a,v,i)=>a+(v-cv[i]),0);
+    roiBridge.pushProjections({moderateSessions:Math.round(mIncrSess),moderateRevenue:Math.round(mIncrSess*rps12),rps:rps12,seoCost:mc*n12,months:n12,endLabel:future[n12-1].label});
     const yw=$('tf-yoy-wrap');
     if(yoy){yw.style.display='block';$('tf-yoy-grid').innerHTML=yoy.map(r=>`<div class="yoy-cell"><div class="ym">${r.label}</div><div class="yv" style="color:${r.rate>=0?'#1D9E75':'#D85A30'}">${r.rate>=0?'+':''}${(r.rate*100).toFixed(1)}%</div></div>`).join('');}else{yw.style.display='none';}
     const sw=$('tf-season-wrap');
@@ -1343,7 +1367,7 @@ function initTrafficTool(container){
   $('tf-btn-run').addEventListener('click',()=>{if(sessionData)run();});
   $('tf-btn-export').addEventListener('click',exportCSV);
   ['moderate','aggressive'].forEach(id=>{$('tf-ov-'+id).addEventListener('change',()=>{if(sessionData)run();});});
-  $('tf-roi-monthly').addEventListener('input',()=>{if(sessionData)run();});
+  $('tf-roi-monthly').addEventListener('input',function(){this.dataset.userEdited=this.value?'1':'';if(sessionData)run();});
   $('tf-roi-rps').addEventListener('input',function(){this.dataset.userEdited=this.value?'1':'';if(sessionData)run();});
   function loadCsvTf(fileId,taId,stId,hint){
     $(fileId).addEventListener('change',function(e){
@@ -1504,6 +1528,8 @@ function initTrackerTool(container){
   let actualsData=null,actualsRevData=null,actualsConvData=null;
   let chartObj=null,roiMode='revenue',roiView='incremental',lastAttr=null;
   let lastRows=null,lastHasVal=false,lastValueLabel='Revenue',lastMonthly=0;
+  if(roiBridge.seoCost&&!$('tr-cfg-monthly').dataset.userEdited)$('tr-cfg-monthly').value=roiBridge.seoCost;
+  roiBridge.onCfg(function(d){var f=$('tr-cfg-monthly');if(f&&!f.dataset.userEdited){f.value=d.seoCost||'';maybeRerun();}});
 
   function setMode(m){
     roiMode=m;
@@ -1723,7 +1749,7 @@ function initTrackerTool(container){
   $('tr-btn-export').addEventListener('click',exportCSV);
   $('tr-cfg-rps').addEventListener('input',function(){this.dataset.userEdited=this.value?'1':'';maybeRerun();});
   $('tr-cfg-months').addEventListener('input',function(){this.dataset.userEdited=this.value?'1':'';maybeRerun();});
-  $('tr-cfg-monthly').addEventListener('input',maybeRerun);
+  $('tr-cfg-monthly').addEventListener('input',function(){this.dataset.userEdited=this.value?'1':'';maybeRerun();});
   ['tr-cfg-brand-pct','tr-cfg-nonbrand-pct','tr-cfg-brand-weight'].forEach(function(id){container.querySelector('#'+id).addEventListener('input',function(){updateBlended();maybeRerun();});});
   function loadCsvTr(fileId,taId,stId,hint,handler){
     $(fileId).addEventListener('change',function(e){
@@ -1784,6 +1810,12 @@ function App(){
   const [paid,setPaid]=useState([]);
   const [crm,setCrm]=useState(null);
   const [email,setEmail]=useState([]);
+  const [projections,setProjections]=useState(null);
+  useEffect(()=>{
+    const seoCost=cfg.retainerMode==='split'?(cfg.retainer.seo||0):Math.floor((cfg.retainer.total||0)/3);
+    roiBridge.pushCfg({seoCost});
+  },[cfg.retainerMode,cfg.retainer]);
+  useEffect(()=>roiBridge.onProjections(setProjections),[]);
 
   const loadDemo=()=>{
     const d=makeDemo();
@@ -1823,7 +1855,7 @@ function App(){
       tab==='tracker'&&h(SEOTrackerView,null),
       tab==='paid'&&h(PaidView,{cfg,paidData:paid,setPaidData:setPaid,crm,setCrm}),
       tab==='email'&&h(EmailView,{cfg,emailData:email,setEmailData:setEmail}),
-      tab==='summary'&&h(Summary,{cfg,gsc,paid,crm,email})
+      tab==='summary'&&h(Summary,{cfg,gsc,paid,crm,email,projections})
     )
   );
 }
