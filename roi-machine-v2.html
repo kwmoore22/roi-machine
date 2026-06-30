@@ -288,6 +288,39 @@ tr:hover td{background:#1e2535}
 .csv-upload-row{display:flex;align-items:center;gap:6px;margin-top:6px}
 .csv-upload-btn{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:4px;border:.5px solid #252d40;background:transparent;color:#64748b;font-size:11px;cursor:pointer;transition:background .12s,color .12s;font-family:inherit;white-space:nowrap;line-height:1.5}
 .csv-upload-btn:hover{background:#161b26;color:#e2e8f0}
+/* ── Funnel panel ── */
+.funnel-panel .f-input-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:16px}
+.funnel-panel .f-period{background:#161b26;border:1px solid #1e2535;border-radius:10px;padding:16px}
+.funnel-panel .f-period-title{font-size:14px;font-weight:600;margin-bottom:14px;padding-bottom:10px;border-bottom-width:2px;border-bottom-style:solid;color:#e2e8f0}
+.funnel-panel .f-group-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#64748b;margin:12px 0 8px}
+.funnel-panel .f-group{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:4px}
+.funnel-panel .f-field label{display:block;font-size:11px;color:#64748b;margin-bottom:4px}
+.funnel-panel .f-input-wrap{display:flex;align-items:center;background:#0f1117;border:1px solid #252d40;border-radius:6px;overflow:hidden;transition:border-color .15s}
+.funnel-panel .f-input-wrap:focus-within{border-color:#3b82f6}
+.funnel-panel .f-prefix{padding:6px 8px;font-size:13px;color:#64748b;flex-shrink:0}
+.funnel-panel .f-input-wrap input{flex:1;padding:6px 9px;border:none;background:transparent;color:#e2e8f0;font-size:13px;font-family:inherit;outline:none;min-width:0}
+.funnel-panel .f-cost-row{display:flex;align-items:flex-end;gap:16px;background:#161b26;border:1px solid #1e2535;border-radius:8px;padding:16px;margin-bottom:8px;flex-wrap:wrap}
+.funnel-panel .f-cost-field{flex:1;min-width:160px}
+.funnel-panel .f-cost-field label{display:block;font-size:11px;color:#64748b;margin-bottom:4px}
+.funnel-panel .f-plain-input{width:100%;padding:7px 10px;background:#0f1117;border:1px solid #252d40;border-radius:6px;color:#e2e8f0;font-size:13px;font-family:inherit;outline:none;transition:border-color .15s}
+.funnel-panel .f-plain-input:focus{border-color:#3b82f6}
+.funnel-panel .f-legend{display:flex;gap:16px;font-size:12px;color:#64748b;margin-bottom:12px;margin-top:8px}
+.funnel-panel .f-dot{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:middle;flex-shrink:0}
+.funnel-panel .f-stages{background:#161b26;border:1px solid #1e2535;border-radius:10px;padding:16px 20px}
+.funnel-panel .fstage{display:grid;grid-template-columns:130px 1fr 120px;gap:16px;align-items:start;padding:12px 0;border-bottom:.5px solid #1e2535}
+.funnel-panel .fstage:last-child{border-bottom:none}
+.funnel-panel .fstage-label{font-size:13px;font-weight:500;padding-top:4px;color:#e2e8f0}
+.funnel-panel .fstage-bars{display:flex;flex-direction:column;gap:6px}
+.funnel-panel .fbar-row{display:flex;align-items:center;gap:10px}
+.funnel-panel .fbar{height:18px;border-radius:3px;min-width:3px;transition:width .4s;flex-shrink:0}
+.funnel-panel .fbar.campaign{background:#3b82f6}
+.funnel-panel .fbar.baseline{background:#334155}
+.funnel-panel .fbar-val{font-size:12px;font-family:'DM Mono',monospace;white-space:nowrap;color:#e2e8f0;flex-shrink:0}
+.funnel-panel .fbar-val.muted{color:#64748b}
+.funnel-panel .fstage-right{text-align:right}
+.funnel-panel .fstage-delta{font-size:16px;font-weight:700;font-family:'DM Mono',monospace;margin-bottom:3px}
+.funnel-panel .fstage-note{font-size:11px;color:#64748b;line-height:1.4}
+.funnel-panel .f-roi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-top:16px}
 </style>
 </head>
 <body>
@@ -1815,6 +1848,117 @@ function SEOTrackerView(){
   return h('div',{ref,className:'tracker-panel',style:{paddingTop:8}});
 }
 
+// ── SEO Funnel ────────────────────────────────────────────────────────────────
+function FunnelView(){
+  const [bl,setBl]=useState({imp:'',clk:'',ctr:'',pos:'',sess:'',conv:'',rev:''});
+  const [ca,setCa]=useState({imp:'',clk:'',ctr:'',pos:'',sess:'',conv:'',rev:''});
+  const [monthly,setMonthly]=useState('');
+  const [mos,setMos]=useState('12');
+  const [shown,setShown]=useState(false);
+  useEffect(()=>{
+    if(roiBridge.seoCost)setMonthly(String(roiBridge.seoCost));
+    return roiBridge.onCfg(d=>{setMonthly(m=>m||String(d.seoCost||''));});
+  },[]);
+  const N=v=>parseFloat(String(v||0).replace(/[^0-9.-]/g,''))||0;
+  const fK=v=>v>=1e6?(v/1e6).toFixed(1)+'M':v>=1e3?(v/1e3).toFixed(0)+'K':Math.round(v).toLocaleString();
+  const f$=v=>v>=1e6?'$'+(v/1e6).toFixed(2)+'M':v>=1e3?'$'+(v/1e3).toFixed(0)+'K':'$'+Math.round(v).toLocaleString();
+  const fPct=v=>v===null?'—':(v>=0?'+':'')+v.toFixed(0)+'%';
+  const pct=(a,b)=>b>0?((a-b)/b*100):null;
+  function derive(d){
+    const imp=N(d.imp),clk=N(d.clk),ctr=N(d.ctr),sess=N(d.sess),conv=N(d.conv),rev=N(d.rev),pos=N(d.pos);
+    const effClk=clk||(imp&&ctr?Math.round(imp*ctr/100):0);
+    const effCtr=ctr||(imp&&effClk?effClk/imp*100:0);
+    const effSess=sess||effClk;
+    const cvr=effSess&&conv?conv/effSess*100:0;
+    return{imp,clk:effClk,ctr:effCtr,sess:effSess,conv,rev,cvr,rpc:conv&&rev?rev/conv:0,pos};
+  }
+  const B=derive(bl),C=derive(ca);
+  const hasData=(B.imp||B.clk||B.sess)&&(C.imp||C.clk||C.sess);
+  const totalCost=N(monthly)*N(mos);
+  const incrRev=C.rev-B.rev;
+  const roi=totalCost>0&&incrRev>0?incrRev/totalCost:null;
+  const stages=[
+    {key:'imp',lbl:'Impressions',bl:B.imp,ca:C.imp,note:B.pos||C.pos?`Avg position: ${B.pos?B.pos.toFixed(1):'—'} → ${C.pos?C.pos.toFixed(1):'—'}`:'Organic search impressions (GSC)'},
+    {key:'clk',lbl:'Clicks',bl:B.clk,ca:C.clk,note:`CTR: ${B.ctr.toFixed(1)}% → ${C.ctr.toFixed(1)}%`},
+    {key:'sess',lbl:'Sessions',bl:B.sess,ca:C.sess,note:'Organic sessions — GA4'},
+    {key:'conv',lbl:'Conversions',bl:B.conv,ca:C.conv,note:`CVR: ${B.cvr.toFixed(1)}% → ${C.cvr.toFixed(1)}%`},
+    ...(B.rev||C.rev?[{key:'rev',lbl:'Revenue',bl:B.rev,ca:C.rev,isMoney:true,note:`Avg value: ${f$(C.rpc)}/conv`}]:[])
+  ].filter(s=>s.bl>0||s.ca>0);
+  const inp=(lbl,val,setFn,pfx)=>h('div',{className:'f-field'},
+    h('label',null,lbl),
+    h('div',{className:'f-input-wrap'},
+      pfx&&h('span',{className:'f-prefix'},pfx),
+      h('input',{type:'number',value:val,min:0,onChange:e=>setFn(e.target.value),placeholder:'0'})
+    )
+  );
+  const pcol=(title,color,d,set)=>h('div',{className:'f-period'},
+    h('div',{className:'f-period-title',style:{borderColor:color}},title),
+    h('div',{className:'f-group-label'},'Google Search Console'),
+    h('div',{className:'f-group'},
+      inp('Impressions',d.imp,v=>set(p=>({...p,imp:v}))),
+      inp('Clicks',d.clk,v=>set(p=>({...p,clk:v}))),
+      inp('Avg CTR %',d.ctr,v=>set(p=>({...p,ctr:v}))),
+      inp('Avg Position',d.pos,v=>set(p=>({...p,pos:v})))
+    ),
+    h('div',{className:'f-group-label'},'Google Analytics 4'),
+    h('div',{className:'f-group'},
+      inp('Sessions',d.sess,v=>set(p=>({...p,sess:v}))),
+      inp('Conversions',d.conv,v=>set(p=>({...p,conv:v}))),
+      inp('Revenue',d.rev,v=>set(p=>({...p,rev:v})),'$')
+    )
+  );
+  const fst=s=>{
+    const max=Math.max(s.bl,s.ca)||1,blW=s.bl/max*100,caW=s.ca/max*100,d=pct(s.ca,s.bl);
+    const disp=v=>s.isMoney?f$(v):fK(v);
+    return h('div',{key:s.key,className:'fstage'},
+      h('div',{className:'fstage-label'},s.lbl),
+      h('div',{className:'fstage-bars'},
+        h('div',{className:'fbar-row'},h('div',{className:'fbar campaign',style:{width:caW+'%'}}),h('span',{className:'fbar-val'},disp(s.ca))),
+        h('div',{className:'fbar-row'},h('div',{className:'fbar baseline',style:{width:blW+'%'}}),h('span',{className:'fbar-val muted'},disp(s.bl)))
+      ),
+      h('div',{className:'fstage-right'},
+        h('div',{className:'fstage-delta',style:{color:d!==null&&d>=0?'#1D9E75':'#D85A30'}},fPct(d)),
+        h('div',{className:'fstage-note'},s.note)
+      )
+    );
+  };
+  return h('div',{className:'funnel-panel sy5',style:{paddingTop:16}},
+    h('div',{className:'f-input-grid'},
+      pcol('Baseline period','#64748b',bl,setBl),
+      pcol('Campaign period','#3b82f6',ca,setCa)
+    ),
+    h('div',{className:'f-cost-row'},
+      h('div',{className:'f-cost-field'},
+        h('label',null,'Monthly SEO cost'),
+        h('div',{className:'f-input-wrap'},h('span',{className:'f-prefix'},'$'),h('input',{type:'number',value:monthly,min:0,onChange:e=>setMonthly(e.target.value),placeholder:'0'}))
+      ),
+      h('div',{className:'f-cost-field'},
+        h('label',null,'Campaign duration (months)'),
+        h('input',{className:'f-plain-input',type:'number',value:mos,min:1,onChange:e=>setMos(e.target.value),placeholder:'12'})
+      ),
+      h('button',{className:'btn btn-p',style:{alignSelf:'flex-end'},onClick:()=>setShown(true)},'Calculate Funnel')
+    ),
+    shown&&hasData&&h(Fragment,null,
+      h('div',{className:'f-legend'},
+        h('span',null,h('span',{className:'f-dot',style:{background:'#3b82f6'}}),'Campaign period'),
+        h('span',null,h('span',{className:'f-dot',style:{background:'#334155'}}),'Baseline period')
+      ),
+      h('div',{className:'f-stages'},stages.map(fst)),
+      h('div',{className:'f-roi-grid'},
+        h(KPI,{label:'Total SEO investment',value:f$(totalCost),sub:'$'+N(monthly).toLocaleString()+'/mo × '+mos+' mo'}),
+        (B.rev>0||C.rev>0)&&h(KPI,{label:'Incremental revenue',value:(incrRev>=0?'+':'')+f$(incrRev),hl:incrRev>0,sub:'campaign − baseline period'}),
+        roi&&h(KPI,{label:'Return on SEO spend',value:roi.toFixed(2)+'x',hl:true,sub:'per $1 invested'}),
+        B.conv>0&&C.conv>0&&h(KPI,{label:'Incremental conversions',value:'+'+(Math.round(C.conv-B.conv)).toLocaleString(),sub:'campaign − baseline period'})
+      )
+    ),
+    (!shown||!hasData)&&h('div',{className:'section-card',style:{marginTop:4,textAlign:'center',padding:40}},
+      h('div',{style:{fontSize:32,marginBottom:12}},'🔽'),
+      h('div',{style:{fontWeight:500,color:'#94a3b8',marginBottom:6}},'Full funnel — baseline vs campaign'),
+      h('div',{style:{fontSize:12,color:'#64748b'}},'Enter GSC + GA4 data for both periods, then click Calculate. Clicks/CTR are mutually derived if one is missing.')
+    )
+  );
+}
+
 // ── App ───────────────────────────────────────────────────────────────────────
 function App(){
   const [tab,setTab]=useState('setup');
@@ -1850,6 +1994,7 @@ function App(){
     {id:'seo',lbl:'🔍 Organic SEO'},
     {id:'traffic',lbl:'📈 Traffic Forecast'},
     {id:'tracker',lbl:'🎯 SEO Tracker'},
+    {id:'funnel',lbl:'🔽 Funnel'},
     {id:'paid',lbl:'💰 Paid Media'},
     {id:'email',lbl:'📧 Email'},
     {id:'summary',lbl:'📊 ROI Summary'},
@@ -1874,6 +2019,7 @@ function App(){
       tab==='seo'&&h(SEOView,{cfg,data:gsc,setData:setGsc}),
       tab==='traffic'&&h(TrafficForecastView,null),
       tab==='tracker'&&h(SEOTrackerView,null),
+      tab==='funnel'&&h(FunnelView,null),
       tab==='paid'&&h(PaidView,{cfg,paidData:paid,setPaidData:setPaid,crm,setCrm}),
       tab==='email'&&h(EmailView,{cfg,emailData:email,setEmailData:setEmail}),
       tab==='summary'&&h(Summary,{cfg,gsc,paid,crm,email,projections})
