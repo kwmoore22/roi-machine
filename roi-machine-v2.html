@@ -1654,9 +1654,57 @@ function initTrafficTool(container){
     const sw=$('tf-season-wrap');
     if(doS&&sIdx){sw.style.display='block';const mn=Math.min(...sIdx),mx=Math.max(...sIdx);$('tf-season-grid').innerHTML=MO.map((m,i)=>{const v=sIdx[i],norm=mx===mn?0.5:(v-mn)/(mx-mn),bg=v>=1?`rgba(29,158,117,${0.08+norm*0.22})`:`rgba(186,117,23,${0.08+(1-norm)*0.22})`,tc=v>=1?'#0F6E56':'#854F0B';return`<div class="scell" style="background:${bg}"><div class="sm">${m}</div><div class="sv" style="color:${tc}">${v.toFixed(2)}×</div></div>`;}).join('');}else{sw.style.display='none';}
   }
-  function handleSessions(){const raw=$('tf-ta-sessions').value.trim(),st=$('tf-st-sessions');if(!raw){sessionData=null;st.textContent='';$('tf-results').style.display='none';updateRPS();return;}const rows=parseText(raw);if(rows.length<2){sessionData=null;st.innerHTML='<span class="err">Need at least 2 rows.</span>';updateRPS();return;}sessionData=rows;const sample=rows.slice(0,2).map(r=>`${r.label}: ${Math.round(r.value).toLocaleString()}`).join(', ');st.innerHTML=`<span class="ok">✓ ${rows.length} months — ${sample}</span>${rows.length<13?' <span class="warn">— add 13+ for YoY</span>':''}`;updateRPS();run();}
-  function handleRevenue(){const raw=$('tf-ta-revenue').value.trim(),st=$('tf-st-revenue');if(!raw){revenueData=null;st.textContent='';updateRPS();if(sessionData)run();return;}const rows=parseText(raw);if(!rows.length){revenueData=null;st.innerHTML='<span class="err">Need at least 1 row.</span>';return;}revenueData=rows;st.innerHTML=`<span class="ok">✓ ${rows.length} months parsed</span>`;updateRPS();if(sessionData)run();}
-  function handleConv(){const raw=$('tf-ta-conv').value.trim(),st=$('tf-st-conv');if(!raw){convData=null;st.textContent='';updateRPS();if(sessionData)run();return;}const rows=parseText(raw);if(!rows.length){convData=null;st.innerHTML='<span class="err">Need at least 1 row.</span>';return;}convData=rows;st.innerHTML=`<span class="ok">✓ ${rows.length} months parsed</span>`;updateRPS();if(sessionData)run();}
+  function handleSessions(){
+    const taEl=$('tf-ta-sessions'),st=$('tf-st-sessions');
+    const raw=taEl.value.trim();
+    if(!raw){sessionData=null;st.textContent='';$('tf-results').style.display='none';updateRPS();return;}
+    let rows=parseText(raw);
+    if(rows.length<2){
+      const ch=parseGA4ChannelReport(raw,'sessions');
+      if(ch&&ch.taText){taEl.value=ch.taText;rows=parseText(ch.taText);}
+      if(rows.length<2){sessionData=null;st.innerHTML='<span class="err">Need at least 2 rows.</span>';updateRPS();return;}
+      st.innerHTML=`<span class="ok">GA4 channel — ${rows.length} months extracted (Organic Search)</span>${rows.length<13?' <span class="warn">— add 13+ for YoY</span>':''}`;
+      sessionData=rows;updateRPS();run();return;
+    }
+    sessionData=rows;
+    const sample=rows.slice(0,2).map(r=>`${r.label}: ${Math.round(r.value).toLocaleString()}`).join(', ');
+    st.innerHTML=`<span class="ok">✓ ${rows.length} months — ${sample}</span>${rows.length<13?' <span class="warn">— add 13+ for YoY</span>':''}`;
+    updateRPS();run();
+  }
+  function handleRevenue(){
+    const taEl=$('tf-ta-revenue'),st=$('tf-st-revenue');
+    const raw=taEl.value.trim();
+    if(!raw){revenueData=null;st.textContent='';updateRPS();if(sessionData)run();return;}
+    let rows=parseText(raw);
+    if(!rows.length){
+      const ch=parseGA4ChannelReport(raw,'revenue');
+      if(ch&&ch.taText){
+        taEl.value=ch.taText;rows=parseText(ch.taText);
+        const rpsField=$('tf-roi-rps');
+        if(ch.rps&&rpsField&&!rpsField.dataset.userEdited){rpsField.value=ch.rps.toFixed(2);rpsField.dispatchEvent(new Event('input'));}
+      }
+      if(!rows.length){revenueData=null;st.innerHTML='<span class="err">Need at least 1 row.</span>';return;}
+      revenueData=rows;
+      st.innerHTML=`<span class="ok">GA4 channel — ${rows.length} months (Organic Search revenue)</span>`;
+      updateRPS();if(sessionData)run();return;
+    }
+    revenueData=rows;st.innerHTML=`<span class="ok">✓ ${rows.length} months parsed</span>`;updateRPS();if(sessionData)run();
+  }
+  function handleConv(){
+    const taEl=$('tf-ta-conv'),st=$('tf-st-conv');
+    const raw=taEl.value.trim();
+    if(!raw){convData=null;st.textContent='';updateRPS();if(sessionData)run();return;}
+    let rows=parseText(raw);
+    if(!rows.length){
+      const ch=parseGA4ChannelReport(raw,'conversions');
+      if(ch&&ch.taText){taEl.value=ch.taText;rows=parseText(ch.taText);}
+      if(!rows.length){convData=null;st.innerHTML='<span class="err">Need at least 1 row.</span>';return;}
+      convData=rows;
+      st.innerHTML=`<span class="ok">GA4 channel — ${rows.length} months (Organic Search conversions)</span>`;
+      updateRPS();if(sessionData)run();return;
+    }
+    convData=rows;st.innerHTML=`<span class="ok">✓ ${rows.length} months parsed</span>`;updateRPS();if(sessionData)run();
+  }
   function exportCSV(){if(!sessionData||sessionData.length<2){alert('Paste session data and run a projection first.');return;}const nP=parseInt($('tf-sel-periods').value),doS=$('tf-chk-season').checked,yoy=calcYoY(sessionData),sIdx=sessionData.length>=12?calcSeason(sessionData):null,last=sessionData[sessionData.length-1],future=nextMos(last.mi,last.yr,nP);const cv=project(sessionData,future,yoy,0,null,doS,sIdx),mPct=getPct('moderate'),aPct=getPct('aggressive'),mv=project(sessionData,future,yoy,mPct,cv,doS,sIdx),av=project(sessionData,future,yoy,aPct,cv,doS,sIdx);const csvRows=[['Month','Type','Sessions','Conservative','Moderate','Aggressive'].join(',')];for(const r of sessionData)csvRows.push([r.label,'Historical',r.value,'','',''].join(','));future.forEach((m,i)=>csvRows.push([m.label,'Projected','',Math.round(cv[i]),Math.round(mv[i]),Math.round(av[i])].join(',')));const blob=new Blob([csvRows.join('\n')],{type:'text/csv'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='sessions-projection.csv';document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);}
 
   $('tf-mode-revenue').addEventListener('click',()=>setMode('revenue'));
