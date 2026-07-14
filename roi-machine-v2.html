@@ -1260,6 +1260,61 @@ function readFileAsText(file,callback){
   }
 }
 
+// Parses GA4 channel-summary exports (one row per channel, no date column).
+// Returns {taText, rps, orgSessions, orgRevenue, months, msg} or null.
+function parseGA4ChannelReport(text,hint){
+  var lines=text.split('\n').map(function(l){return l.trim();});
+  // Pull date range from comment header (# Start date: 20250101)
+  var startDate=null,endDate=null;
+  lines.forEach(function(l){
+    var sm=l.match(/Start date:\s*(\d{8})/i),em=l.match(/End date:\s*(\d{8})/i);
+    if(sm)startDate=sm[1];if(em)endDate=em[1];
+  });
+  // Find data lines (non-comment, non-empty)
+  var data=lines.filter(function(l){return l.length>0&&!l.startsWith('#');});
+  if(data.length<2)return null;
+  function sc(l){var o=[],c='',q=false;for(var i=0;i<l.length;i++){var ch=l[i];if(ch==='"'){q=!q;}else if(ch===','&&!q){o.push(c.trim());c='';}else{c+=ch;}}o.push(c.trim());return o;}
+  var hdr=sc(data[0]);
+  // Must NOT have a date column — this distinguishes it from time-series
+  if(hdr.some(function(h){return/^(date|month|week|period)$/i.test(h.trim());}))return null;
+  // Must have a Sessions column
+  var sessIdx=hdr.findIndex(function(h){return/^sessions$/i.test(h.trim());});
+  var revIdx=hdr.findIndex(function(h){return/total.?revenue|revenue/i.test(h.trim());});
+  var convIdx=hdr.findIndex(function(h){return/key.?event|conversion/i.test(h.trim());});
+  if(sessIdx===-1&&revIdx===-1)return null;
+  // Find Organic Search row
+  var orgRow=null;
+  for(var i=1;i<data.length;i++){
+    if(/^"?organic.?search"?/i.test(data[i])){orgRow=sc(data[i]);break;}
+  }
+  if(!orgRow)return null;
+  var orgSessions=sessIdx!==-1?parseFloat(orgRow[sessIdx])||0:0;
+  var orgRevenue=revIdx!==-1?parseFloat(orgRow[revIdx])||0:0;
+  var orgConvs=convIdx!==-1?parseFloat(orgRow[convIdx])||0:0;
+  // Calculate months from header date range
+  var months=12;
+  if(startDate&&endDate){
+    var sy=parseInt(startDate.slice(0,4)),smo=parseInt(startDate.slice(4,6));
+    var ey=parseInt(endDate.slice(0,4)),emo=parseInt(endDate.slice(4,6));
+    months=Math.max(1,(ey-sy)*12+(emo-smo)+1);
+  }
+  // Generate monthly average rows for the textarea
+  var MO=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var sy2=startDate?parseInt(startDate.slice(0,4)):new Date().getFullYear()-1;
+  var smo2=startDate?parseInt(startDate.slice(4,6))-1:new Date().getMonth();
+  var monthly=hint==='revenue'?orgRevenue/months:hint==='conversions'?orgConvs/months:orgSessions/months;
+  var rows=[];
+  for(var i=0;i<months;i++){
+    var mi=(smo2+i)%12,yr=sy2+Math.floor((smo2+i)/12);
+    rows.push(MO[mi]+'-'+String(yr).slice(2)+'\t'+Math.round(monthly));
+  }
+  var rps=orgSessions>0&&orgRevenue>0?orgRevenue/orgSessions:null;
+  var label=hint==='revenue'?'$'+Math.round(monthly).toLocaleString()+'/mo organic revenue':
+            hint==='conversions'?Math.round(monthly).toLocaleString()+'/mo organic conversions':
+            Math.round(monthly).toLocaleString()+'/mo organic sessions';
+  return{taText:rows.join('\n'),rps:rps,orgSessions:Math.round(orgSessions),orgRevenue:Math.round(orgRevenue),months:months,label:label};
+}
+
 function parseGA4Csv(text,hint){
   var lines=text.split('\n').map(function(l){return l.trim();}).filter(function(l){return l.length>0&&!l.startsWith('#');});
   if(lines.length<2)return null;
@@ -1625,7 +1680,18 @@ function initTrafficTool(container){
       readFileAsText(f,function(text){
         if(!text){$(stId).innerHTML='<span class="err">Could not read file.</span>';inp.value='';return;}
         var out=parseGA4Csv(text,hint);
-        if(!out){$(stId).innerHTML='<span class="err">Could not detect columns — try pasting instead.</span>';inp.value='';return;}
+        if(!out){
+          // Try GA4 channel-summary format (one row per channel, no date column)
+          var ch=parseGA4ChannelReport(text,hint);
+          if(ch){
+            $(taId).value=ch.taText;$(taId).dispatchEvent(new Event('input'));inp.value='';
+            var rpsField=$('tf-roi-rps');
+            if(ch.rps&&rpsField&&!rpsField.dataset.userEdited){rpsField.value=ch.rps.toFixed(2);rpsField.dispatchEvent(new Event('input'));}
+            $(stId).innerHTML='<span class="ok">GA4 channel summary — Organic Search, '+ch.months+' months ('+ch.label+')'+(ch.rps?' · RPS $'+ch.rps.toFixed(2)+' applied':'')+'</span>';
+            return;
+          }
+          $(stId).innerHTML='<span class="err">Could not detect columns — try pasting instead.</span>';inp.value='';return;
+        }
         $(taId).value=out;$(taId).dispatchEvent(new Event('input'));inp.value='';
       });
     }
@@ -2014,7 +2080,15 @@ function initTrackerTool(container){
       readFileAsText(f,function(text){
         if(!text){$(stId).innerHTML='<span class="err">Could not read file.</span>';inp.value='';return;}
         var out=parseGA4Csv(text,hint);
-        if(!out){$(stId).innerHTML='<span class="err">Could not detect columns — try pasting instead.</span>';inp.value='';return;}
+        if(!out){
+          var ch=parseGA4ChannelReport(text,hint);
+          if(ch){
+            $(taId).value=ch.taText;$(taId).dispatchEvent(new Event('input'));inp.value='';
+            $(stId).innerHTML='<span class="ok">GA4 channel summary — Organic Search, '+ch.months+' months ('+ch.label+')</span>';
+            return;
+          }
+          $(stId).innerHTML='<span class="err">Could not detect columns — try pasting instead.</span>';inp.value='';return;
+        }
         $(taId).value=out;$(taId).dispatchEvent(new Event('input'));inp.value='';
       });
     }
