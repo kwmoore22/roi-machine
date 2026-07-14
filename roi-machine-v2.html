@@ -288,6 +288,34 @@ tr:hover td{background:#1e2535}
 .csv-upload-row{display:flex;align-items:center;gap:6px;margin-top:6px}
 .csv-upload-btn{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:4px;border:.5px solid #252d40;background:transparent;color:#64748b;font-size:11px;cursor:pointer;transition:background .12s,color .12s;font-family:inherit;white-space:nowrap;line-height:1.5}
 .csv-upload-btn:hover{background:#161b26;color:#e2e8f0}
+.traffic-panel .input-box,.tracker-panel .input-box{transition:border-color .15s,background .15s}
+.traffic-panel .input-box.drop-active,.tracker-panel .input-box.drop-active{border-color:#3b82f6 !important;background:rgba(59,130,246,0.07) !important}
+.drop-hint{font-size:10px;color:#475569;margin-left:2px}
+/* ── Executive Brief ── */
+.exec-summary{background:#141c2e;border:1px solid #2d3a5a;border-radius:12px;padding:24px;margin-bottom:20px}
+.exec-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:18px}
+.exec-title{font-size:15px;font-weight:700;color:#f1f5f9;letter-spacing:-.3px}
+.exec-sub{font-size:12px;color:#64748b;margin-top:3px}
+.conf-badge{text-align:right;flex-shrink:0;margin-left:16px}
+.conf-score{font-size:30px;font-weight:700;font-family:'DM Mono',monospace;line-height:1}
+.conf-label{font-size:11px;font-weight:600;margin-top:2px;letter-spacing:.02em}
+.exec-narrative{background:#0f1320;border-left:3px solid #3b82f6;border-radius:0 6px 6px 0;padding:14px 16px;margin-bottom:20px;font-size:13px;line-height:1.75;color:#94a3b8}
+.exec-narrative strong{color:#e2e8f0}
+.exec-section-title{font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px}
+.exec-scenarios{margin-bottom:20px}
+.exec-table{width:100%;border-collapse:collapse;font-size:13px}
+.exec-table th{font-size:10px;color:#475569;font-weight:600;text-transform:uppercase;letter-spacing:.06em;text-align:left;padding:6px 12px;border-bottom:1px solid #1e2535}
+.exec-table td{padding:9px 12px;border-bottom:1px solid #1a2130}
+.exec-table tbody tr:last-child td{border-bottom:none}
+.exec-table tbody tr:hover{background:rgba(255,255,255,0.02)}
+.exec-confidence{border-top:1px solid #1e2535;padding-top:16px;margin-top:4px}
+.conf-bar-wrap{margin-bottom:12px}
+.conf-bar-track{height:5px;background:#1e2535;border-radius:3px;overflow:hidden}
+.conf-bar-fill{height:100%;border-radius:3px;transition:width .5s ease}
+.conf-checklist{display:grid;grid-template-columns:1fr 1fr;gap:5px 16px}
+.conf-item{display:flex;align-items:baseline;gap:6px;font-size:12px;line-height:1.5}
+.conf-icon{font-size:11px;flex-shrink:0;font-style:normal}
+@media print{.app-header,.app-nav,.btn,.csv-upload-row,.hint,.section-card:not(.print-show){display:none!important}.exec-summary{border:1px solid #ccc!important;background:#fff!important;color:#111!important;padding:20px!important}.exec-narrative{background:#f8fafc!important;color:#333!important}.exec-table th,.exec-table td{color:#111!important;border-color:#ddd!important}}
 /* ── Funnel panel ── */
 .funnel-panel .f-input-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:16px}
 .funnel-panel .f-period{background:#161b26;border:1px solid #1e2535;border-radius:10px;padding:16px}
@@ -329,6 +357,7 @@ tr:hover td{background:#1e2535}
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
 <script>
 'use strict';
 const {createElement:h,Fragment,useState,useMemo,useRef,useCallback,useEffect}=React;
@@ -942,6 +971,130 @@ const roiBridge={
   onProjections(f){this._projCbs.push(f);return()=>{this._projCbs=this._projCbs.filter(x=>x!==f);};}
 };
 
+// ── Executive Brief ───────────────────────────────────────────────────────────
+function ExecSummary({cfg,projections}){
+  const p=projections;
+  const factors=[
+    {ok:true,                             label:p.historyMonths+' months of search performance data loaded',pts:25},
+    {ok:p.historyMonths>=13,              label:'13+ months enables year-over-year accuracy',pts:20},
+    {ok:p.hasRevenueData,                 label:'Revenue data loaded — RPS from actuals, not estimates',pts:20},
+    {ok:p.hasConvData,                    label:'Conversion data loaded',pts:15},
+    {ok:p.seasonalityEnabled,             label:'Seasonal patterns applied to projections',pts:10},
+    {ok:p.seoCostMonthly>0,              label:'Monthly investment set for ROI calculation',pts:10},
+  ];
+  const score=factors.reduce((s,f)=>s+(f.ok?f.pts:0),0);
+  const confLabel=score>=80?'High Confidence':score>=60?'Moderate Confidence':'Limited Data';
+  const confColor=score>=80?'#22c55e':score>=60?'#f59e0b':'#ef4444';
+
+  const hasRev=p.rps>0;
+  const showROI=hasRev&&p.seoCost>0;
+  const modROI=p.seoCost>0?p.moderateRevenue/p.seoCost:null;
+  const aggROI=p.seoCost>0?p.aggressiveRevenue/p.seoCost:null;
+
+  const scenarios=[
+    {name:'Conservative',sessions:0,      rev:null,roi:null,be:'—',                          col:'#888780'},
+    {name:'Moderate',    sessions:p.moderateSessions, rev:hasRev?p.moderateRevenue:null, roi:modROI, be:p.breakEvenMod||'Outside window', col:'#1D9E75'},
+    {name:'Aggressive',  sessions:p.aggressiveSessions,rev:hasRev?p.aggressiveRevenue:null,roi:aggROI,be:p.breakEvenAgg||'Outside window',col:'#D85A30'},
+  ];
+
+  // narrative fragments
+  const yoyFrag=p.yoyGrowth!=null
+    ?[' with a ',h('strong',null,(p.yoyGrowth>=0?'+':'')+Math.round(p.yoyGrowth*100)+'%'),' historical YoY growth trend']
+    :[];
+  const revFrag=showROI
+    ?[', generating an estimated ',h('strong',null,fmt$(p.moderateRevenue)),' in incremental revenue at a ',h('strong',null,fmtX(modROI)),' return on the ',h('strong',null,fmt$(p.seoCostMonthly)),'/mo investment']
+    :[];
+  const beFrag=p.breakEvenMod
+    ?['Investment reaches break-even by ',h('strong',null,p.breakEvenMod),' (moderate)',p.breakEvenAgg&&p.breakEvenAgg!==p.breakEvenMod?[', ',h('strong',null,p.breakEvenAgg),' (aggressive)']:[],'.' ]
+    :['Break-even falls outside the current projection window.'];
+
+  const copyExec=()=>{
+    const lines=[
+      '── EXECUTIVE BRIEF ──',
+      (cfg.clientName||'Client')+' · '+new Date().toLocaleDateString('en-US',{month:'long',year:'numeric'}),
+      'Model Confidence: '+score+'/100 ('+confLabel+')',
+      '',
+      'NARRATIVE',
+      (cfg.clientName||'This client')+' is currently generating '+fmtN(p.lastMonthSessions)+' organic visits/month'
+        +(p.yoyGrowth!=null?' with a '+(p.yoyGrowth>=0?'+':'')+Math.round(p.yoyGrowth*100)+'% historical YoY trend':'')
+        +'. Based on '+p.historyMonths+' months of data, the Traffic Forecast model projects +'
+        +fmtN(p.moderateSessions)+' incremental sessions over the next '+p.months+' months (moderate)'
+        +(showROI?', generating an estimated '+fmt$(p.moderateRevenue)+' incremental revenue at '+fmtX(modROI)+' return on the '+fmt$(p.seoCostMonthly)+'/mo investment':'')+'.',
+      '',
+      'SCENARIOS (next '+p.months+' months)',
+      'Conservative: baseline',
+      'Moderate:     +'+fmtN(p.moderateSessions)+' sessions'+(hasRev?' / '+fmt$(p.moderateRevenue):'')+(modROI?' / '+fmtX(modROI)+' ROI':'')+(p.breakEvenMod?' / break-even '+p.breakEvenMod:''),
+      'Aggressive:   +'+fmtN(p.aggressiveSessions)+' sessions'+(hasRev?' / '+fmt$(p.aggressiveRevenue):'')+(aggROI?' / '+fmtX(aggROI)+' ROI':'')+(p.breakEvenAgg?' / break-even '+p.breakEvenAgg:''),
+    ];
+    navigator.clipboard.writeText(lines.join('\n')).then(()=>alert('Executive brief copied!'));
+  };
+
+  return h('div',{className:'exec-summary'},
+    h('div',{className:'exec-header'},
+      h('div',null,
+        h('div',{className:'exec-title'},'Executive Brief'),
+        h('div',{className:'exec-sub'},(cfg.clientName||'SEO Revenue Model'),' · ',new Date().toLocaleDateString('en-US',{month:'long',year:'numeric'}))
+      ),
+      h('div',{className:'conf-badge',style:{color:confColor}},
+        h('div',{className:'conf-score'},score),
+        h('div',{className:'conf-label'},confLabel)
+      )
+    ),
+
+    h('div',{className:'exec-narrative'},
+      h('p',null,
+        h('strong',null,cfg.clientName||'This client'),' is currently generating ',
+        h('strong',null,fmtN(p.lastMonthSessions)),' organic visits/month',
+        ...yoyFrag,
+        '. Based on ',h('strong',null,String(p.historyMonths)),' months of search performance data, the Traffic Forecast model projects ',
+        h('strong',null,'+'+fmtN(p.moderateSessions)),' incremental sessions over the next ',
+        h('strong',null,String(p.months)),' months under the moderate scenario',
+        ...revFrag,'. ',
+        ...beFrag
+      )
+    ),
+
+    h('div',{className:'exec-scenarios'},
+      h('div',{className:'exec-section-title'},'Scenario Comparison — Next '+p.months+' Months'),
+      h('table',{className:'exec-table'},
+        h('thead',null,h('tr',null,
+          h('th',null,'Scenario'),
+          h('th',null,'Incr. Sessions'),
+          hasRev&&h('th',null,'Incr. Revenue'),
+          showROI&&h('th',null,'ROI'),
+          p.seoCost>0&&h('th',null,'Break-even')
+        )),
+        h('tbody',null,...scenarios.map((s,i)=>h('tr',{key:i},
+          h('td',null,h('span',{style:{display:'inline-block',width:8,height:8,borderRadius:'50%',background:s.col,marginRight:8}}),h('strong',null,s.name)),
+          h('td',{className:'mn',style:{color:s.sessions>0?s.col:'#475569'}},s.sessions>0?'+'+fmtN(s.sessions):'baseline'),
+          hasRev&&h('td',{className:'mn',style:{color:s.rev>0?s.col:'#475569'}},s.rev>0?fmt$(s.rev):'—'),
+          showROI&&h('td',{className:'mn',style:{color:s.roi&&s.roi>1?s.col:'#475569'}},s.roi&&s.roi>0?fmtX(s.roi):'—'),
+          p.seoCost>0&&h('td',{className:'mn',style:{fontSize:12,color:'#94a3b8'}},s.be)
+        )))
+      )
+    ),
+
+    h('div',{className:'exec-confidence'},
+      h('div',{className:'exec-section-title'},'Model Confidence — '+score+'/100'),
+      h('div',{className:'conf-bar-wrap'},
+        h('div',{className:'conf-bar-track'},
+          h('div',{className:'conf-bar-fill',style:{width:score+'%',background:confColor}})
+        )
+      ),
+      h('div',{className:'conf-checklist'},
+        ...factors.map((f,i)=>h('div',{key:i,className:'conf-item'},
+          h('i',{className:'conf-icon',style:{color:f.ok?'#22c55e':'#334155'}},f.ok?'✓':'○'),
+          h('span',{style:{color:f.ok?'#94a3b8':'#334155',fontSize:12}},f.label)
+        ))
+      )
+    ),
+
+    h('div',{style:{marginTop:16}},
+      h('button',{className:'btn btn-p',onClick:copyExec},'📋 Copy Executive Brief')
+    )
+  );
+}
+
 // ── ROI Summary ───────────────────────────────────────────────────────────────
 function Summary({cfg,gsc,paid,crm,email,projections}){
   const isEst=cfg.revenueModel!=='ecommerce';
@@ -986,6 +1139,7 @@ function Summary({cfg,gsc,paid,crm,email,projections}){
   };
 
   return h('div',{className:'sy5',style:{paddingTop:16}},
+    projections&&h(ExecSummary,{cfg,projections}),
     h('div',{className:'kpi-grid4'},
       h(KPI,{label:'Total Revenue',value:fmt$(totalRev),hl:true,badge:h(Badge,{type:isEst?'est':'attr'},isEst?'Est.':'Attr.')}),
       h(KPI,{label:'Blended ROI',value:fmtX(blended),hl:true,tip:'Total Revenue ÷ Total Retainer'}),
@@ -1059,17 +1213,17 @@ function Summary({cfg,gsc,paid,crm,email,projections}){
         )
       ),
 
-      projections&&h(Card,{title:'Traffic Forecast — Moderate Scenario (next '+projections.months+' mo)'},
+      projections&&projections.seoCost>0&&h(Card,{title:'SEO Investment Summary — '+projections.months+'-Month Horizon'},
         h('div',{className:'kpi-grid4'},
-          h(KPI,{label:'Projected incr. sessions',value:fmtN(projections.moderateSessions),sub:'above conservative baseline'}),
-          projections.rps>0&&h(KPI,{label:'Projected incr. revenue',value:fmt$(projections.moderateRevenue),sub:'moderate scenario'}),
-          projections.rps>0&&projections.seoCost>0&&h(KPI,{label:'Projected ROI',value:fmtX(projections.moderateRevenue/(projections.seoCost||1)),hl:true,sub:'incr. revenue ÷ SEO cost'}),
-          h(KPI,{label:'Projection horizon',value:projections.endLabel,sub:'moderate scenario end month'})
+          h(KPI,{label:'Total program cost',value:fmt$(projections.seoCost),sub:fmt$(projections.seoCostMonthly)+'/mo × '+projections.months+' months'}),
+          projections.rps>0&&h(KPI,{label:'Moderate incr. revenue',value:fmt$(projections.moderateRevenue),sub:'+'+fmtN(projections.moderateSessions)+' sessions'}),
+          projections.rps>0&&h(KPI,{label:'Aggressive incr. revenue',value:fmt$(projections.aggressiveRevenue),sub:'+'+fmtN(projections.aggressiveSessions)+' sessions'}),
+          projections.rps>0&&h(KPI,{label:'Projected ROI range',value:fmtX(projections.moderateRevenue/projections.seoCost)+' – '+fmtX(projections.aggressiveRevenue/projections.seoCost),hl:true,sub:'moderate → aggressive'})
         )
       ),
 
-      h('div',{style:{display:'flex',gap:12}},
-        h('button',{className:'btn btn-p',onClick:copy},'📋 Copy Slide Summary'),
+      h('div',{style:{display:'flex',gap:12,flexWrap:'wrap'}},
+        h('button',{className:'btn btn-p',onClick:copy},'📋 Copy Channel Summary'),
         h('button',{className:'btn btn-s',onClick:()=>window.print()},'🖨 Print / Export PDF')
       )
     )
@@ -1077,6 +1231,24 @@ function Summary({cfg,gsc,paid,crm,email,projections}){
 }
 
 // ── GA4 CSV parser ────────────────────────────────────────────────────────────
+function readFileAsText(file,callback){
+  var isXlsx=/\.xlsx?$/i.test(file.name);
+  var rdr=new FileReader();
+  if(isXlsx){
+    rdr.onload=function(ev){
+      try{
+        var wb=XLSX.read(new Uint8Array(ev.target.result),{type:'array'});
+        var ws=wb.Sheets[wb.SheetNames[0]];
+        callback(XLSX.utils.sheet_to_csv(ws));
+      }catch(ex){callback(null);}
+    };
+    rdr.readAsArrayBuffer(file);
+  }else{
+    rdr.onload=function(ev){callback(ev.target.result);};
+    rdr.readAsText(file);
+  }
+}
+
 function parseGA4Csv(text,hint){
   var lines=text.split('\n').map(function(l){return l.trim();}).filter(function(l){return l.length>0&&!l.startsWith('#');});
   if(lines.length<2)return null;
@@ -1143,14 +1315,14 @@ function initTrafficTool(container){
     <div class="box-subtitle">Best source: GSC → Performance → Export (by Date). GA4 Acquisition also works. Paste or upload month + clicks/sessions.</div>
     <textarea id="tf-ta-sessions" placeholder="Jan-24\t34000\nFeb-24\t37600\nMar-24\t39500\n..."></textarea>
     <div class="status" id="tf-st-sessions"></div>
-    <div class="csv-upload-row"><label class="csv-upload-btn" for="tf-file-sessions">↑ Upload GSC or GA4 CSV</label><input type="file" id="tf-file-sessions" accept=".csv" style="display:none"></div>
+    <div class="csv-upload-row"><label class="csv-upload-btn" for="tf-file-sessions">↑ Upload or drag & drop</label><input type="file" id="tf-file-sessions" accept=".csv,.xlsx" style="display:none"></div>
   </div>
   <div class="input-box">
     <div class="box-title"><span class="box-title-dot" style="background:#BA7517"></span>Revenue <span style="font-weight:400;color:var(--color-text-secondary);font-size:11px;margin-left:2px">optional</span></div>
     <div class="box-subtitle">Paste monthly revenue to auto-calculate avg revenue per session.</div>
     <textarea id="tf-ta-revenue" placeholder="Jan-24\t85000\nFeb-24\t91200\nMar-24\t98400\n..."></textarea>
     <div class="status" id="tf-st-revenue"></div>
-    <div class="csv-upload-row"><label class="csv-upload-btn" for="tf-file-revenue">↑ Upload GA4 CSV</label><input type="file" id="tf-file-revenue" accept=".csv" style="display:none"></div>
+    <div class="csv-upload-row"><label class="csv-upload-btn" for="tf-file-revenue">↑ Upload or drag & drop</label><input type="file" id="tf-file-revenue" accept=".csv,.xlsx" style="display:none"></div>
   </div>
   <div class="input-box">
     <div class="box-title"><span class="box-title-dot" style="background:#534AB7"></span>Conversions <span style="font-weight:400;color:var(--color-text-secondary);font-size:11px;margin-left:2px">optional</span></div>
@@ -1161,7 +1333,7 @@ function initTrafficTool(container){
       <div class="conv-input-wrap"><span class="conv-prefix">$</span><input type="number" id="tf-conv-value" placeholder="0" min="0" step="1"></div>
     </div>
     <div class="status" id="tf-st-conv"></div>
-    <div class="csv-upload-row"><label class="csv-upload-btn" for="tf-file-conv">↑ Upload GA4 CSV</label><input type="file" id="tf-file-conv" accept=".csv" style="display:none"></div>
+    <div class="csv-upload-row"><label class="csv-upload-btn" for="tf-file-conv">↑ Upload or drag & drop</label><input type="file" id="tf-file-conv" accept=".csv,.xlsx" style="display:none"></div>
   </div>
 </div>
 <div class="hint">Paste tab or comma-separated data. Month labels like Jan-24, 2024-01, or 01/2024 all work. 13+ months recommended for YoY mode.</div>
@@ -1399,7 +1571,18 @@ function initTrafficTool(container){
     renderROI(future,cv,mv,av);
     const n12=Math.min(nP,12),rps12=getEffRPS(),mc=parseFloat($('tf-roi-monthly').value)||0;
     const mIncrSess=mv.slice(0,n12).reduce((a,v,i)=>a+(v-cv[i]),0);
-    roiBridge.pushProjections({moderateSessions:Math.round(mIncrSess),moderateRevenue:Math.round(mIncrSess*rps12),rps:rps12,seoCost:mc*n12,months:n12,endLabel:future[n12-1].label});
+    const aIncrSess=av.slice(0,n12).reduce((a,v,i)=>a+(v-cv[i]),0);
+    let beMod=null,beAgg=null,_cc=0,_crm=0,_cra=0;
+    for(let i=0;i<n12;i++){const _im=Math.max(0,mv[i]-cv[i]),_ia=Math.max(0,av[i]-cv[i]);_cc+=mc;_crm+=_im*rps12;_cra+=_ia*rps12;if(beMod===null&&_crm>=_cc)beMod=future[i].label;if(beAgg===null&&_cra>=_cc)beAgg=future[i].label;}
+    roiBridge.pushProjections({
+      moderateSessions:Math.round(mIncrSess),moderateRevenue:Math.round(mIncrSess*rps12),
+      aggressiveSessions:Math.round(aIncrSess),aggressiveRevenue:Math.round(aIncrSess*rps12),
+      rps:rps12,seoCost:mc*n12,seoCostMonthly:mc,months:n12,endLabel:future[n12-1].label,
+      yoyGrowth:ay,lastMonthSessions:lastVal,lastMonthLabel:hL[hL.length-1],
+      historyMonths:d.length,hasRevenueData:!!(revenueData&&revenueData.length),
+      hasConvData:!!(convData&&convData.length),seasonalityEnabled:!!(doS&&sIdx),
+      breakEvenMod:beMod,breakEvenAgg:beAgg
+    });
     const yw=$('tf-yoy-wrap');
     if(yoy){yw.style.display='block';$('tf-yoy-grid').innerHTML=yoy.map(r=>`<div class="yoy-cell"><div class="ym">${r.label}</div><div class="yv" style="color:${r.rate>=0?'#1D9E75':'#D85A30'}">${r.rate>=0?'+':''}${(r.rate*100).toFixed(1)}%</div></div>`).join('');}else{yw.style.display='none';}
     const sw=$('tf-season-wrap');
@@ -1424,16 +1607,23 @@ function initTrafficTool(container){
   $('tf-roi-monthly').addEventListener('input',function(){this.dataset.userEdited=this.value?'1':'';if(sessionData)run();});
   $('tf-roi-rps').addEventListener('input',function(){this.dataset.userEdited=this.value?'1':'';if(sessionData)run();});
   function loadCsvTf(fileId,taId,stId,hint){
-    $(fileId).addEventListener('change',function(e){
-      var f=e.target.files&&e.target.files[0];if(!f)return;
-      var rdr=new FileReader();
-      rdr.onload=function(ev){
-        var out=parseGA4Csv(ev.target.result,hint);
-        if(!out){$(stId).innerHTML='<span class="err">Could not detect columns — try pasting instead.</span>';e.target.value='';return;}
-        $(taId).value=out;$(taId).dispatchEvent(new Event('input'));e.target.value='';
-      };
-      rdr.readAsText(f);
-    });
+    var inp=$(fileId);
+    var box=inp.closest('.input-box');
+    function handle(f){
+      if(!f)return;
+      readFileAsText(f,function(text){
+        if(!text){$(stId).innerHTML='<span class="err">Could not read file.</span>';inp.value='';return;}
+        var out=parseGA4Csv(text,hint);
+        if(!out){$(stId).innerHTML='<span class="err">Could not detect columns — try pasting instead.</span>';inp.value='';return;}
+        $(taId).value=out;$(taId).dispatchEvent(new Event('input'));inp.value='';
+      });
+    }
+    inp.addEventListener('change',function(e){handle(e.target.files&&e.target.files[0]);});
+    if(box){
+      box.addEventListener('dragover',function(e){e.preventDefault();box.classList.add('drop-active');});
+      box.addEventListener('dragleave',function(e){if(!box.contains(e.relatedTarget))box.classList.remove('drop-active');});
+      box.addEventListener('drop',function(e){e.preventDefault();box.classList.remove('drop-active');handle(e.dataTransfer.files&&e.dataTransfer.files[0]);});
+    }
   }
   loadCsvTf('tf-file-sessions','tf-ta-sessions','tf-st-sessions','sessions');
   loadCsvTf('tf-file-revenue','tf-ta-revenue','tf-st-revenue','revenue');
@@ -1459,21 +1649,21 @@ function initTrackerTool(container){
     <div class="box-subtitle">Best source: GSC → Performance → Export (by Date) for the pre-campaign period. GA4 Acquisition also works.</div>
     <textarea id="tr-ta-baseline" placeholder="Jan-23\t28000\nFeb-23\t29500\n...\nDec-24\t36000\n(13+ months recommended)"></textarea>
     <div class="status" id="tr-st-baseline"></div>
-    <div class="csv-upload-row"><label class="csv-upload-btn" for="tr-file-baseline">↑ Upload GSC or GA4 CSV</label><input type="file" id="tr-file-baseline" accept=".csv" style="display:none"></div>
+    <div class="csv-upload-row"><label class="csv-upload-btn" for="tr-file-baseline">↑ Upload or drag & drop</label><input type="file" id="tr-file-baseline" accept=".csv,.xlsx" style="display:none"></div>
   </div>
   <div class="input-box" id="tr-box-baseline-rev">
     <div class="box-title"><span class="box-title-dot" style="background:#BA7517"></span>Historical revenue <span style="font-weight:400;color:var(--color-text-secondary);font-size:11px;margin-left:2px">optional</span></div>
     <div class="box-subtitle">Paste pre-campaign revenue to auto-calculate revenue per session.</div>
     <textarea id="tr-ta-baseline-rev" placeholder="Jan-23\t71000\nFeb-23\t74000\n..."></textarea>
     <div class="status" id="tr-st-baseline-rev"></div>
-    <div class="csv-upload-row"><label class="csv-upload-btn" for="tr-file-baseline-rev">↑ Upload GA4 CSV</label><input type="file" id="tr-file-baseline-rev" accept=".csv" style="display:none"></div>
+    <div class="csv-upload-row"><label class="csv-upload-btn" for="tr-file-baseline-rev">↑ Upload or drag & drop</label><input type="file" id="tr-file-baseline-rev" accept=".csv,.xlsx" style="display:none"></div>
   </div>
   <div class="input-box" id="tr-box-baseline-conv" style="display:none">
     <div class="box-title"><span class="box-title-dot" style="background:#534AB7"></span>Historical conversions <span style="font-weight:400;color:var(--color-text-secondary);font-size:11px;margin-left:2px">optional</span></div>
     <div class="box-subtitle">Paste pre-campaign monthly conversion counts.</div>
     <textarea id="tr-ta-baseline-conv" placeholder="Jan-23\t310\nFeb-23\t328\n..."></textarea>
     <div class="status" id="tr-st-baseline-conv"></div>
-    <div class="csv-upload-row"><label class="csv-upload-btn" for="tr-file-baseline-conv">↑ Upload GA4 CSV</label><input type="file" id="tr-file-baseline-conv" accept=".csv" style="display:none"></div>
+    <div class="csv-upload-row"><label class="csv-upload-btn" for="tr-file-baseline-conv">↑ Upload or drag & drop</label><input type="file" id="tr-file-baseline-conv" accept=".csv,.xlsx" style="display:none"></div>
   </div>
 </div>
 <div class="hint" style="margin-bottom:0">The last month of baseline data is the campaign start point. Actuals should begin the month after.</div>
@@ -1485,14 +1675,14 @@ function initTrackerTool(container){
     <div class="box-subtitle">Best source: GSC → Performance → Export (by Date) for the campaign period. GA4 Acquisition also works.</div>
     <textarea id="tr-ta-actuals" placeholder="Jan-25\t38500\nFeb-25\t41200\nMar-25\t44800\n..."></textarea>
     <div class="status" id="tr-st-actuals"></div>
-    <div class="csv-upload-row"><label class="csv-upload-btn" for="tr-file-actuals">↑ Upload GSC or GA4 CSV</label><input type="file" id="tr-file-actuals" accept=".csv" style="display:none"></div>
+    <div class="csv-upload-row"><label class="csv-upload-btn" for="tr-file-actuals">↑ Upload or drag & drop</label><input type="file" id="tr-file-actuals" accept=".csv,.xlsx" style="display:none"></div>
   </div>
   <div class="input-box" id="tr-box-actuals-rev">
     <div class="box-title"><span class="box-title-dot" style="background:#1D9E75"></span>Actual revenue <span style="font-weight:400;color:var(--color-text-secondary);font-size:11px;margin-left:2px">optional</span></div>
     <div class="box-subtitle">Paste actual revenue figures for a direct comparison.</div>
     <textarea id="tr-ta-actuals-rev" placeholder="Jan-25\t98000\nFeb-25\t107000\n..."></textarea>
     <div class="status" id="tr-st-actuals-rev"></div>
-    <div class="csv-upload-row"><label class="csv-upload-btn" for="tr-file-actuals-rev">↑ Upload GA4 CSV</label><input type="file" id="tr-file-actuals-rev" accept=".csv" style="display:none"></div>
+    <div class="csv-upload-row"><label class="csv-upload-btn" for="tr-file-actuals-rev">↑ Upload or drag & drop</label><input type="file" id="tr-file-actuals-rev" accept=".csv,.xlsx" style="display:none"></div>
   </div>
   <div class="input-box" id="tr-box-actuals-conv" style="display:none">
     <div class="box-title"><span class="box-title-dot" style="background:#534AB7"></span>Actual conversions <span style="font-weight:400;color:var(--color-text-secondary);font-size:11px;margin-left:2px">optional</span></div>
@@ -1503,7 +1693,7 @@ function initTrackerTool(container){
       <div class="conv-input-wrap"><span class="conv-prefix">$</span><input type="number" id="tr-conv-value" placeholder="0" min="0" step="1"></div>
     </div>
     <div class="status" id="tr-st-actuals-conv"></div>
-    <div class="csv-upload-row"><label class="csv-upload-btn" for="tr-file-actuals-conv">↑ Upload GA4 CSV</label><input type="file" id="tr-file-actuals-conv" accept=".csv" style="display:none"></div>
+    <div class="csv-upload-row"><label class="csv-upload-btn" for="tr-file-actuals-conv">↑ Upload or drag & drop</label><input type="file" id="tr-file-actuals-conv" accept=".csv,.xlsx" style="display:none"></div>
   </div>
 </div>
 <div class="divider"></div>
@@ -1806,16 +1996,23 @@ function initTrackerTool(container){
   $('tr-cfg-monthly').addEventListener('input',function(){this.dataset.userEdited=this.value?'1':'';maybeRerun();});
   ['tr-cfg-brand-pct','tr-cfg-nonbrand-pct','tr-cfg-brand-weight'].forEach(function(id){container.querySelector('#'+id).addEventListener('input',function(){updateBlended();maybeRerun();});});
   function loadCsvTr(fileId,taId,stId,hint,handler){
-    $(fileId).addEventListener('change',function(e){
-      var f=e.target.files&&e.target.files[0];if(!f)return;
-      var rdr=new FileReader();
-      rdr.onload=function(ev){
-        var out=parseGA4Csv(ev.target.result,hint);
-        if(!out){$(stId).innerHTML='<span class="err">Could not detect columns — try pasting instead.</span>';e.target.value='';return;}
-        $(taId).value=out;$(taId).dispatchEvent(new Event('input'));e.target.value='';
-      };
-      rdr.readAsText(f);
-    });
+    var inp=$(fileId);
+    var box=inp.closest('.input-box');
+    function handle(f){
+      if(!f)return;
+      readFileAsText(f,function(text){
+        if(!text){$(stId).innerHTML='<span class="err">Could not read file.</span>';inp.value='';return;}
+        var out=parseGA4Csv(text,hint);
+        if(!out){$(stId).innerHTML='<span class="err">Could not detect columns — try pasting instead.</span>';inp.value='';return;}
+        $(taId).value=out;$(taId).dispatchEvent(new Event('input'));inp.value='';
+      });
+    }
+    inp.addEventListener('change',function(e){handle(e.target.files&&e.target.files[0]);});
+    if(box){
+      box.addEventListener('dragover',function(e){e.preventDefault();box.classList.add('drop-active');});
+      box.addEventListener('dragleave',function(e){if(!box.contains(e.relatedTarget))box.classList.remove('drop-active');});
+      box.addEventListener('drop',function(e){e.preventDefault();box.classList.remove('drop-active');handle(e.dataTransfer.files&&e.dataTransfer.files[0]);});
+    }
   }
   loadCsvTr('tr-file-baseline','tr-ta-baseline','tr-st-baseline','sessions');
   loadCsvTr('tr-file-baseline-rev','tr-ta-baseline-rev','tr-st-baseline-rev','revenue');
@@ -1987,6 +2184,15 @@ function App(){
     setCfg(c=>({...c,clientName:'Apex Running Co.',industry:'fitness',revenueModel:'ecommerce',aov:150,convRate:2.5}));
     setGsc(d.gsc);setPaid(d.paid);setCrm(d.crm);setEmail(d.email);
     setDemo(true);
+    // Push representative projections so Executive Brief populates immediately
+    roiBridge.pushProjections({
+      moderateSessions:24600,moderateRevenue:123000,
+      aggressiveSessions:36900,aggressiveRevenue:184500,
+      rps:5.00,seoCost:48000,seoCostMonthly:4000,months:12,endLabel:'Dec-25',
+      yoyGrowth:0.12,lastMonthSessions:38500,lastMonthLabel:'Dec-24',
+      historyMonths:24,hasRevenueData:true,hasConvData:false,seasonalityEnabled:true,
+      breakEvenMod:'Mar-25',breakEvenAgg:'Feb-25'
+    });
   };
 
   const TABS=[
