@@ -1476,7 +1476,15 @@ function initTrafficTool(container){
   const HC='#7F77DD';
   let sessionData=null,revenueData=null,convData=null,chartObj=null,roiMode='revenue';
   if(roiBridge.seoCost&&!$('tf-roi-monthly').dataset.userEdited)$('tf-roi-monthly').value=roiBridge.seoCost;
-  roiBridge.onCfg(function(d){var f=$('tf-roi-monthly');if(f&&!f.dataset.userEdited){f.value=d.seoCost||'';if(sessionData)run();}});
+  if(roiBridge.revenueModel){var _im=roiBridge.revenueModel==='ecommerce'?'revenue':'leads';if(_im!==roiMode)setMode(_im);}
+  if(roiBridge.convValue>0&&!$('tf-conv-value').dataset.userEdited)$('tf-conv-value').value=Math.round(roiBridge.convValue);
+  roiBridge.onCfg(function(d){
+    var f=$('tf-roi-monthly');
+    if(f&&!f.dataset.userEdited){f.value=d.seoCost||'';if(sessionData)run();}
+    if(d.revenueModel){var nm=d.revenueModel==='ecommerce'?'revenue':'leads';if(nm!==roiMode)setMode(nm);}
+    var cv=$('tf-conv-value');
+    if(cv&&!cv.dataset.userEdited&&d.convValue>0){cv.value=Math.round(d.convValue);cv.dispatchEvent(new Event('input'));}
+  });
 
   function setMode(m){
     roiMode=m;
@@ -2308,8 +2316,11 @@ function App(){
   const [projections,setProjections]=useState(null);
   useEffect(()=>{
     const seoCost=cfg.retainerMode==='split'?(cfg.retainer.seo||0):Math.floor((cfg.retainer.total||0)/3);
-    roiBridge.pushCfg({seoCost});
-  },[cfg.retainerMode,cfg.retainer]);
+    const convValue=cfg.revenueModel==='ecommerce'
+      ?(cfg.aov||0)
+      :(cfg.dealValue||0)*((cfg.closeRate||0)/100);
+    roiBridge.pushCfg({seoCost,revenueModel:cfg.revenueModel,convValue});
+  },[cfg.retainerMode,cfg.retainer,cfg.revenueModel,cfg.aov,cfg.dealValue,cfg.closeRate]);
   useEffect(()=>roiBridge.onProjections(setProjections),[]);
 
   const loadDemo=()=>{
